@@ -25,5 +25,10 @@ yarn start:dev
 - Json Schema for importing to Postman: http://localhost:3000/api-docs-json
 - API Base URL: http://localhost:3000/api
 
+#### Render Deployment
+- Swagger: https://awp-nestjs-be.onrender.com/api-docs
+- Json Schema for importing to Postman: https://awp-nestjs-be.onrender.com/api-docs-json
+- API Base URL: https://awp-nestjs-be.onrender.com/api
+
 #### References
 - [NestJS Project Boilerplate Tutorial](https://viblo.asia/p/setup-boilerplate-cho-du-an-nestjs-phan-1-team-co-nhieu-thanh-vien-env-joi-husky-commitlint-prettier-dockerizing-EbNVQxG2LvR)
