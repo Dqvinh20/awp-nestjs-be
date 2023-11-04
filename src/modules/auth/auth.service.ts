@@ -11,6 +11,10 @@ import { TokenPayload } from './interfaces/token.interface';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import {
+	scryptHash,
+	scryptCompare,
+} from '@modules/shared/helper/scrypt.helper';
+import {
 	access_token_private_key,
 	refresh_token_private_key,
 } from 'src/constraints/jwt.constraint';
@@ -108,10 +112,16 @@ export class AuthService {
 			if (!user) {
 				throw new UnauthorizedException();
 			}
-			await this.verifyPlainContentWithHashedContent(
+
+			const is_matching = await scryptCompare(
 				refresh_token,
 				user.current_refresh_token,
 			);
+
+			if (!is_matching) {
+				throw new BadRequestException();
+			}
+
 			return user;
 		} catch (error) {
 			throw error;
@@ -140,7 +150,7 @@ export class AuthService {
 
 	async storeRefreshToken(user_id: string, token: string): Promise<void> {
 		try {
-			const hashed_token = await bcrypt.hash(token, this.SALT_ROUND);
+			const hashed_token = await scryptHash(token);
 			await this.users_service.setCurrentRefreshToken(user_id, hashed_token);
 		} catch (error) {
 			throw error;
