@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local.guard';
 import { RequestWithUser } from 'src/types/requests.type';
@@ -155,9 +155,16 @@ export class AuthController {
 			},
 		},
 	})
-	async signIn(@Req() request: RequestWithUser) {
+	async signIn(@Req() request: RequestWithUser, @Res() response) {
 		const { user } = request;
-		return await this.auth_service.signIn(user._id.toString());
+		const data = await this.auth_service.signIn(user._id.toString());
+		response.cookie('refresh_token', data.refresh_token, {
+			maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+			sameSite: 'strict',
+			secure: false,
+			httpOnly: true,
+		});
+		return response.send(data);
 	}
 
 	@UseGuards(JwtRefreshTokenGuard)
