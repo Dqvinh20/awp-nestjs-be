@@ -5,10 +5,12 @@ import { AppModule } from './app.module';
 import { configSwagger } from '@configs/api-docs.config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
-
+import * as cookieParser from 'cookie-parser';
 async function bootstrap() {
 	const logger = new Logger(bootstrap.name);
 	const app = await NestFactory.create<NestExpressApplication>(AppModule);
+	app.use(cookieParser());
+
 	const config_service = app.get(ConfigService);
 	app.useStaticAssets(join(__dirname, './served'));
 	app.useGlobalPipes(

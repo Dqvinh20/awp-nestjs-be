@@ -14,9 +14,10 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(
 ) {
 	constructor(private readonly auth_service: AuthService) {
 		super({
-			jwtFromRequest: (req: Request) => {
-				console.log(req.cookies);
-				return '123';
+			jwtFromRequest: (req: Request,) => {
+				const cookies = req.cookies
+				console.log(cookies.refresh_token);
+				return cookies.refresh_token;
 			},
 			ignoreExpiration: false,
 			secretOrKey: refresh_token_public_key,
@@ -25,9 +26,10 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(
 	}
 
 	async validate(request: Request, payload: TokenPayload) {
+		console.log(payload)
 		return await this.auth_service.getUserIfRefreshTokenMatched(
 			payload.user_id,
-			request.headers.authorization.split('Bearer ')[1],
+			request.cookies.refresh_token
 		);
 	}
 }
