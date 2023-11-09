@@ -24,11 +24,8 @@ export enum GENDER {
 	},
 })
 export class User extends BaseEntity {
-	@Prop()
-	friendly_id: number;
-
 	@Prop({
-		required: true,
+		required: false,
 		minlength: 2,
 		maxlength: 60,
 		set: (first_name: string) => {
@@ -38,7 +35,7 @@ export class User extends BaseEntity {
 	first_name: string;
 
 	@Prop({
-		required: true,
+		required: false,
 		minlength: 2,
 		maxlength: 60,
 		set: (last_name: string) => {
@@ -55,23 +52,6 @@ export class User extends BaseEntity {
 	// @Expose({ name: 'mail', toPlainOnly: true })
 	email: string;
 
-	@Prop({
-		match: /^([+]\d{2})?\d{10}$/,
-		get: (phone_number: string) => {
-			if (!phone_number) {
-				return;
-			}
-			const last_four_digits = phone_number.slice(phone_number.length - 4);
-			return `***-***-${last_four_digits}`;
-		},
-	})
-	phone_number: string;
-
-	@Prop({
-		required: true,
-		unique: true,
-	})
-	username: string;
 
 	@Exclude()
 	@Prop({
@@ -85,8 +65,6 @@ export class User extends BaseEntity {
 	})
 	avatar: string;
 
-	@Prop()
-	date_of_birth: Date;
 
 	@Prop({
 		enum: GENDER,
