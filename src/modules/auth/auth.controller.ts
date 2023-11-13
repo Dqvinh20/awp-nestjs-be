@@ -29,16 +29,12 @@ export class AuthController {
 		examples: {
 			user_1: {
 				value: {
-					first_name: 'John',
-					last_name: 'Doe',
 					email: 'johndoe@example.com',
 					password: '1232@asdS',
 				} as SignUpDto,
 			},
 			user_2: {
 				value: {
-					first_name: 'Michael',
-					last_name: 'Smith',
 					email: 'michaelsmith@example.com',
 					password: '1232@asdS',
 				} as SignUpDto,
@@ -74,16 +70,6 @@ export class AuthController {
 							message: [
 								'email must be an email',
 								'password is not strong enough',
-							],
-							error: 'Bad Request',
-						},
-					},
-					some_fields_missing: {
-						value: {
-							statusCode: 400,
-							message: [
-								'last_name must be shorter than or equal to 50 characters',
-								'last_name should not be empty',
 							],
 							error: 'Bad Request',
 						},
@@ -126,16 +112,12 @@ export class AuthController {
 		examples: {
 			user_1: {
 				value: {
-					first_name: 'John',
-					last_name: 'Doe',
-					email: 'johndoe@example.com',
-					password: '1232@asdS',
+					email: 'admin@example.com',
+					password: 'Admin@123',
 				} as SignUpDto,
 			},
 			user_2: {
 				value: {
-					first_name: 'Michael',
-					last_name: 'Smith',
 					email: 'michaelsmith@example.com',
 					password: '1232@asdS',
 				} as SignUpDto,
