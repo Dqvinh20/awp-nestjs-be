@@ -12,7 +12,7 @@ export function configSwagger(app: INestApplication) {
 		.setTitle('AWP NestJS Backend project')
 		.setDescription('## The AWP NestJS API description')
 		.setVersion('1.0')
-		.addSecurity('token', { type: 'http', scheme: 'bearer' })
+		.addBearerAuth()
 		.build();
 	const document = SwaggerModule.createDocument(app, config);
 
