@@ -12,13 +12,10 @@ import {
 import { CreateAddressDto } from './create-address.dto';
 
 export class CreateUserDto {
-
-
 	@IsNotEmpty()
 	@MaxLength(50)
 	@IsEmail()
 	email: string;
-
 
 	@IsOptional()
 	// @IsPhoneNumber()

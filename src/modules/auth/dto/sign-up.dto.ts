@@ -5,8 +5,6 @@ import {
 	MaxLength,
 } from 'class-validator';
 export class SignUpDto {
-
-
 	@IsNotEmpty()
 	@MaxLength(50)
 	@IsEmail()
