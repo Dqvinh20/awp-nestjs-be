@@ -20,7 +20,7 @@ const AUTH_CREDENTIALS = {
 	password: '1232@asdS',
 };
 
-postData('/auth/sign-in', AUTH_CREDENTIALS)
+postData('/api/auth/sign-in', AUTH_CREDENTIALS)
 	.then((data) => {
 		setTimeout(() => {
 			window.ui.preauthorizeApiKey('token', data.access_token);
