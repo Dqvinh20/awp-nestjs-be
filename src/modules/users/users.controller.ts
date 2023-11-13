@@ -19,11 +19,26 @@ import { JwtAccessTokenGuard } from '@modules/auth/guards/jwt-access-token.guard
 import { Roles } from 'src/decorators/roles.decorator';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+	ApiBearerAuth,
+	ApiOperation,
+	ApiTags,
+	ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 
 @ApiBearerAuth()
 @Controller('users')
 @ApiTags('users')
+@ApiUnauthorizedResponse({
+	description: 'Unauthorized',
+	schema: {
+		type: 'object',
+		example: {
+			statusCode: 401,
+			message: 'Unauthorized',
+		},
+	},
+})
 @UseInterceptors(MongooseClassSerializerInterceptor(User))
 export class UsersController {
 	constructor(private readonly users_service: UsersService) {}
