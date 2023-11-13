@@ -22,10 +22,8 @@ const AUTH_CREDENTIALS = {
 
 postData('/api/auth/sign-in', AUTH_CREDENTIALS)
 	.then((data) => {
-		setTimeout(() => {
-			window.ui.preauthorizeApiKey('token', data.access_token);
-			console.log('preauth success');
-		}, 1000);
+		window.ui.preauthorizeApiKey('bearer', data.access_token);
+		console.log('preauth success');
 	})
 	.catch((e) => {
 		console.error(`preauth failed: ${e}`);
