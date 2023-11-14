@@ -10,7 +10,10 @@ async function bootstrap() {
 	const logger = new Logger(bootstrap.name);
 	const app = await NestFactory.create<NestExpressApplication>(AppModule);
 	app.use(cookieParser());
-
+	app.enableCors({
+		origin: true,
+		credentials: true,
+	});
 	const config_service = app.get(ConfigService);
 	app.useStaticAssets(join(__dirname, './served'));
 	app.useGlobalPipes(
