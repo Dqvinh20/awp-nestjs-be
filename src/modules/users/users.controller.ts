@@ -9,6 +9,7 @@ import {
 	UseInterceptors,
 	SerializeOptions,
 	UseGuards,
+	BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -25,6 +26,7 @@ import {
 	ApiTags,
 	ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { isMongoId } from 'class-validator';
 
 @ApiBearerAuth()
 @Controller('users')
@@ -68,11 +70,17 @@ export class UsersController {
 
 	@Get(':id')
 	async findOne(@Param('id') id: string) {
+		if (!isMongoId(id)) {
+			throw new BadRequestException("Invalid user's id");
+		}
 		return await this.users_service.findOne(id);
 	}
 
 	@Patch(':id')
 	update(@Param('id') id: string, @Body() update_user_dto: UpdateUserDto) {
+		if (!isMongoId(id)) {
+			throw new BadRequestException("Invalid user's id");
+		}
 		return this.users_service.update(id, update_user_dto);
 	}
 
@@ -81,6 +89,9 @@ export class UsersController {
 	@UseGuards(RolesGuard)
 	@UseGuards(JwtAccessTokenGuard)
 	remove(@Param('id') id: string) {
+		if (!isMongoId(id)) {
+			throw new BadRequestException("Invalid user's id");
+		}
 		return this.users_service.remove(id);
 	}
 }
