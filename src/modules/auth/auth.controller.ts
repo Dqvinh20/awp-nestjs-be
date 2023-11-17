@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+	Body,
+	Controller,
+	HttpCode,
+	Post,
+	Req,
+	Res,
+	UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local.guard';
 import { RequestWithUser } from 'src/types/requests.type';
@@ -6,6 +14,7 @@ import { JwtRefreshTokenGuard } from './guards/jwt-refresh-token.guard';
 import { SignUpDto } from './dto/sign-up.dto';
 import {
 	ApiBadRequestResponse,
+	ApiBearerAuth,
 	ApiBody,
 	ApiConflictResponse,
 	ApiCreatedResponse,
@@ -14,9 +23,11 @@ import {
 	ApiTags,
 } from '@nestjs/swagger';
 import { EmailConfirmationService } from '@modules/emailConfirmation/emailConfirmation.service';
+import { JwtAccessTokenGuard } from './guards/jwt-access-token.guard';
 
 @Controller('auth')
 @ApiTags('auth')
+@ApiBearerAuth()
 export class AuthController {
 	constructor(
 		private readonly auth_service: AuthService,
@@ -105,9 +116,15 @@ export class AuthController {
 			},
 		},
 	})
-	async signUp(@Body() sign_up_dto: SignUpDto) {
+	async signUp(@Body() sign_up_dto: SignUpDto, @Req() request) {
 		const user = await this.auth_service.signUp(sign_up_dto);
 		await this.emailConfirmationService.sendVerificationLink(sign_up_dto.email);
+
+		// Set refresh token to cookie
+		const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
+			user.refresh_token,
+		);
+		request.res.setHeader('Set-Cookie', refreshTokenCookie);
 		return user;
 	}
 
@@ -143,16 +160,16 @@ export class AuthController {
 			},
 		},
 	})
-	async signIn(@Req() request: RequestWithUser, @Res() response) {
+	async signIn(@Req() request: RequestWithUser) {
 		const { user } = request;
 		const data = await this.auth_service.signIn(user._id.toString());
-		response.cookie('refresh_token', data.refresh_token, {
-			maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-			sameSite: 'strict',
-			secure: false,
-			httpOnly: true,
-		});
-		return response.send(data);
+
+		// Set refresh token to cookie
+		const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
+			data.refresh_token,
+		);
+		request.res.setHeader('Set-Cookie', refreshTokenCookie);
+		return data;
 	}
 
 	@UseGuards(JwtRefreshTokenGuard)
@@ -165,5 +182,16 @@ export class AuthController {
 		return {
 			access_token,
 		};
+	}
+
+	@UseGuards(JwtAccessTokenGuard)
+	@Post('log-out')
+	@HttpCode(200)
+	async logOut(@Req() request: RequestWithUser) {
+		await this.auth_service.removeRefreshToken(request.user.id);
+		request.res.setHeader(
+			'Set-Cookie',
+			this.auth_service.getCookiesForLogOut(),
+		);
 	}
 }
