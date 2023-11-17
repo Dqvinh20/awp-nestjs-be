@@ -15,7 +15,6 @@ import {
 	ApiBearerAuth,
 	ApiTags,
 	ApiUnauthorizedResponse,
-	refs,
 } from '@nestjs/swagger';
 import { JwtAccessTokenGuard } from '@modules/auth/guards/jwt-access-token.guard';
 import { RequestWithUser } from 'src/types/requests.type';
@@ -30,36 +29,33 @@ export class EmailConfirmationController {
 	) {}
 
 	@ApiBadRequestResponse({
-		schema: {
-			anyOf: [
-				{
-					title: 'Email already confirmed',
-					type: 'object',
-					example: {
-						statusCode: 400,
-						message: 'Email already confirmed',
-						error: 'Bad Request',
+		description: 'Validation failed',
+		content: {
+			'application/json': {
+				examples: {
+					'Email already confirmed': {
+						value: {
+							statusCode: 400,
+							message: 'Email already confirmed',
+							error: 'Bad Request',
+						},
+					},
+					'Email confirmation token expired': {
+						value: {
+							statusCode: 400,
+							message: 'Email confirmation token expired',
+							error: 'Bad Request',
+						},
+					},
+					'Bad confirmation token': {
+						value: {
+							statusCode: 400,
+							message: 'Bad confirmation token',
+							error: 'Bad Request',
+						},
 					},
 				},
-				{
-					title: 'Email confirmation token expired',
-					type: 'object',
-					example: {
-						statusCode: 400,
-						message: 'Email confirmation token expired',
-						error: 'Bad Request',
-					},
-				},
-				{
-					title: 'Bad confirmation token',
-					type: 'object',
-					example: {
-						statusCode: 400,
-						message: 'Bad confirmation token',
-						error: 'Bad Request',
-					},
-				},
-			],
+			},
 		},
 	})
 	@Post('confirm')
@@ -72,12 +68,17 @@ export class EmailConfirmationController {
 
 	@ApiBadRequestResponse({
 		description: 'Email already confirmed',
-		schema: {
-			type: 'object',
-			example: {
-				statusCode: 400,
-				message: 'Email already confirmed',
-				error: 'Bad Request',
+		content: {
+			'application/json': {
+				examples: {
+					'Email already confirmed': {
+						value: {
+							statusCode: 400,
+							message: 'Email already confirmed',
+							error: 'Bad Request',
+						},
+					},
+				},
 			},
 		},
 	})
