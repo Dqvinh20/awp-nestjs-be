@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Document</title>
+</head>
+
+<body style="align-items:center;color:black;">
+    <table align="center" cellpadding="0" cellspacing="0">
+        <tbody>
+            <tr>
+                <td bgcolor="#ffffff"
+                    style="height: 500px!important;padding: 0 40px;border:1px solid #98A8F8;border-radius:5px;"
+                    valign=“top”>
+                    <table align="center" cellpadding="0" cellspacing="0" style="font-family:'Work Sans',sans-serif;">
+                        <tbody>
+                            <tr>
+                                <td align="center">
+                                    <img alt="email" width="120px"
+                                        src="https://cdn-icons-png.flaticon.com/256/3487/3487761.png">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center">
+                                    <h2 style="margin-top:1rem!important;font-size:24px!important;">Invitation Mail</h2>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center">
+                                    <table align="center" cellspacing="0" cellpadding="0">
+                                        <tbody align="center">
+                                            <tr>
+                                                <td>
+                                                    <img style="height:42px;border-radius: 9999px;"
+                                                        src={{author.avatar}} alt="author">
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <span style="font-weight: 600;">{{author.name}}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <span style="color: rgb(0, 0, 0, 0.5);">{{author.email}}</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center">
+                                    <p
+                                        style="width:600px!important;font-size:20px!important;text-align:center!important;letter-spacing:1px!important;margin-bottom:2rem!important;">
+                                        Your are invited to join "{{class.name}}"
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center">
+                                    <a style="text-decoration: none!important; border: 1px solid #98A8F8!important; border-radius: 5px!important; background-color: #98A8F8!important; font-size: 1.5rem!important; color: white!important; padding: 8px 16px!important; cursor: pointer!important;"
+                                        href={{enrollUrl}}>Enroll Now</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+
+</html>

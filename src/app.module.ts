@@ -8,6 +8,8 @@ import { database_config } from '@configs/configuration.config';
 import { UsersModule } from '@modules/users/users.module';
 import { UserRolesModule } from '@modules/user-roles/user-roles.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 
 @Module({
 	imports: [
@@ -22,6 +24,8 @@ import { AuthModule } from './modules/auth/auth.module';
 				DATABASE_PASSWORD: Joi.string().min(4).required(),
 				DATABASE_HOST: Joi.string().required(),
 				DATABASE_URI: Joi.string().required(),
+				MAIL_USER: Joi.string().required(),
+				MAIL_PASS: Joi.string().required(),
 			}),
 			validationOptions: {
 				abortEarly: false,
@@ -42,6 +46,30 @@ import { AuthModule } from './modules/auth/auth.module';
 			}),
 			inject: [ConfigService],
 		}),
+		MailerModule.forRootAsync({
+			imports: [ConfigModule],
+			inject: [ConfigService],
+			useFactory: async (configService: ConfigService) => ({
+				transport: {
+					service: 'gmail',
+					auth: {
+						user: configService.get<string>('MAIL_USER'),
+						pass: configService.get<string>('MAIL_PASS'),
+					},
+				},
+				defaults: {
+					from: 'awp.classroom.mail@gmail.com',
+				},
+				template: {
+					dir: __dirname + '/templates',
+					adapter: new HandlebarsAdapter(),
+					options: {
+						strict: true,
+					},
+				},
+			}),
+		}),
+
 		UserRolesModule,
 		UsersModule,
 		AuthModule,
