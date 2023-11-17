@@ -13,11 +13,15 @@ import {
 	ApiResponse,
 	ApiTags,
 } from '@nestjs/swagger';
+import { EmailConfirmationService } from '@modules/emailConfirmation/emailConfirmation.service';
 
 @Controller('auth')
 @ApiTags('auth')
 export class AuthController {
-	constructor(private readonly auth_service: AuthService) {}
+	constructor(
+		private readonly auth_service: AuthService,
+		private readonly emailConfirmationService: EmailConfirmationService,
+	) {}
 
 	@Post('sign-up')
 	@ApiOperation({
@@ -102,7 +106,9 @@ export class AuthController {
 		},
 	})
 	async signUp(@Body() sign_up_dto: SignUpDto) {
-		return await this.auth_service.signUp(sign_up_dto);
+		const user = await this.auth_service.signUp(sign_up_dto);
+		await this.emailConfirmationService.sendVerificationLink(sign_up_dto.email);
+		return user;
 	}
 
 	@UseGuards(LocalAuthGuard)

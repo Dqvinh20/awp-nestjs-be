@@ -10,6 +10,7 @@ import { UserRolesModule } from '@modules/user-roles/user-roles.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { EmailConfirmationModule } from '@modules/emailConfirmation/emailConfirmation.module';
 
 @Module({
 	imports: [
@@ -69,10 +70,10 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 				},
 			}),
 		}),
-
 		UserRolesModule,
 		UsersModule,
 		AuthModule,
+		EmailConfirmationModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

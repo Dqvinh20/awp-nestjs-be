@@ -75,4 +75,11 @@ export class UsersService extends BaseServiceAbstract<User> {
 			throw error;
 		}
 	}
+
+	async markEmailAsConfirmed(email: string) {
+		const user = await this.getUserByEmail(email);
+		return this.users_repository.update(user.id, {
+			isEmailConfirmed: true,
+		});
+	}
 }

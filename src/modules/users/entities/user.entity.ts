@@ -89,6 +89,9 @@ export class User extends BaseEntity {
 
 	default_address?: string;
 
+	@Prop({ default: false })
+	isEmailConfirmed: boolean;
+
 	@Prop()
 	@Exclude()
 	current_refresh_token: string;
