@@ -16,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import MongooseClassSerializerInterceptor from './interceptors/mongoose-class-serializer.interceptor';
 import { User } from '@modules/users/entities/user.entity';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Controller()
 @ApiUnauthorizedResponse({
@@ -33,7 +34,36 @@ export class AppController {
 	constructor(
 		private readonly appService: AppService,
 		private readonly usersService: UsersService,
+		private readonly mailerService: MailerService,
 	) {}
+
+	@Get('/test')
+	async test() {
+		this.mailerService
+			.sendMail({
+				to: 'duongquangvinh2210@gmail.com',
+				subject: 'Testing Nest MailerModule ✔',
+				template: 'enroll_invitation',
+				context: {
+					author: {
+						avatar: 'https://via.placeholder.com/150',
+						name: 'Mary',
+						email: 'mary@example.com',
+					},
+					class: {
+						name: 'Lop hoc i to',
+					},
+					enrollUrl: '#',
+				},
+			})
+			.then(() => {
+				console.log('success');
+			})
+			.catch(() => {
+				console.log('error');
+			});
+		return 'test';
+	}
 
 	@ApiBearerAuth()
 	@ApiOperation({
