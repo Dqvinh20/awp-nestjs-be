@@ -9,7 +9,6 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { TokenPayload } from './interfaces/token.interface';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcryptjs';
 import {
 	scryptHash,
 	scryptCompare,
@@ -19,10 +18,13 @@ import {
 	refresh_token_private_key,
 } from 'src/constraints/jwt.constraint';
 import { SignUpDto } from './dto/sign-up.dto';
+import {
+	comparePassword,
+	hashPassword,
+} from '@modules/shared/helper/password.helper';
 
 @Injectable()
 export class AuthService {
-	private SALT_ROUND = 11;
 	constructor(
 		private config_service: ConfigService,
 		private readonly users_service: UsersService,
@@ -37,10 +39,7 @@ export class AuthService {
 			if (existed_user) {
 				throw new ConflictException('Email already existed!!');
 			}
-			const hashed_password = await bcrypt.hash(
-				sign_up_dto.password,
-				this.SALT_ROUND,
-			);
+			const hashed_password = hashPassword(sign_up_dto.password);
 			const user = await this.users_service.create({
 				...sign_up_dto,
 				password: hashed_password,
@@ -92,7 +91,7 @@ export class AuthService {
 		plain_text: string,
 		hashed_text: string,
 	) {
-		const is_matching = await bcrypt.compare(plain_text, hashed_text);
+		const is_matching = comparePassword(plain_text, hashed_text);
 		if (!is_matching) {
 			throw new BadRequestException();
 		}

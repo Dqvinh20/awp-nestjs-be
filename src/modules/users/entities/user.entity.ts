@@ -96,6 +96,10 @@ export class User extends BaseEntity {
 	@Exclude()
 	current_refresh_token: string;
 
+	@Prop()
+	@Exclude()
+	current_reset_password_token: string;
+
 	@Expose({ name: 'full_name' })
 	get fullName(): string {
 		return `${this.first_name} ${this.last_name}`;
