@@ -5,6 +5,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchemaFactory } from './entities/user.entity';
 import { UsersRepository } from '@repositories/users.repository';
 import { UserRolesModule } from '@modules/user-roles/user-roles.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
 	imports: [
@@ -14,7 +16,9 @@ import { UserRolesModule } from '@modules/user-roles/user-roles.module';
 				useFactory: UserSchemaFactory,
 			},
 		]),
+		MailerModule,
 		UserRolesModule,
+		JwtModule,
 	],
 	controllers: [UsersController],
 	providers: [
