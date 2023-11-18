@@ -145,6 +145,13 @@ export class AuthService {
 		});
 	}
 
+	getCookieRefreshToken(token: string) {
+		const cookie = `Refresh=${token}; HttpOnly; Path=/; Max-Age=${this.config_service.get(
+			'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
+		)}`;
+		return cookie;
+	}
+
 	async storeRefreshToken(user_id: string, token: string): Promise<void> {
 		try {
 			const hashed_token = await scryptHash(token);
@@ -152,5 +159,13 @@ export class AuthService {
 		} catch (error) {
 			throw error;
 		}
+	}
+
+	async removeRefreshToken(user_id: string) {
+		return this.users_service.setCurrentRefreshToken(user_id, null);
+	}
+
+	getCookiesForLogOut() {
+		return ['Refresh=; HttpOnly; Path=/; Max-Age=0'];
 	}
 }
