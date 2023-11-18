@@ -11,3 +11,9 @@ export const database_config = () => ({
 		uri: process.env.DATABASE_URI,
 	},
 });
+
+export const resetPasswordConfig = () => ({
+	secret: process.env.JWT_PASSWORD_RESET_TOKEN_SECRET,
+	expiresIn: process.env.JWT_PASSWORD_RESET_TOKEN_EXPIRATION_TIME,
+	url: process.env.PASSWORD_RESET_URL,
+});
