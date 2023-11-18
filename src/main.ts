@@ -6,10 +6,13 @@ import { configSwagger } from '@configs/api-docs.config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import * as cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+
 async function bootstrap() {
 	const logger = new Logger(bootstrap.name);
 	const app = await NestFactory.create<NestExpressApplication>(AppModule);
 	app.use(cookieParser());
+	app.use(helmet());
 	app.enableCors({
 		origin: true,
 		credentials: true,
