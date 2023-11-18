@@ -1,3 +1,5 @@
+[![Deploy to Server](https://github.com/Dqvinh20/awp-nestjs-be/actions/workflows/deploy.yml/badge.svg?branch=develop)](https://github.com/Dqvinh20/awp-nestjs-be/actions/workflows/deploy.yml)
+
 **Requirements for local dev**
 - File ```.env.development``` must be created in root folder (use for local development). See .env for reference
 - MongoDB installed
