@@ -21,7 +21,7 @@ export abstract class BaseRepositoryAbstract<T extends BaseEntity>
 		options?: QueryOptions<T>,
 	): Promise<T> {
 		const item = await this.model.findById(id, projection, options);
-		return item.deleted_at ? null : item;
+		return item && item.deleted_at ? null : item;
 	}
 
 	async findOneByCondition(condition = {}): Promise<T> {

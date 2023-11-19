@@ -70,6 +70,12 @@ export class User extends BaseEntity {
 	gender: GENDER;
 
 	@Prop({
+		default: true,
+	})
+	// Block user
+	isActive: boolean;
+
+	@Prop({
 		type: mongoose.Schema.Types.ObjectId,
 		ref: UserRole.name,
 	})
