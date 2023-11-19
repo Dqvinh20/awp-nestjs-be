@@ -1,7 +1,9 @@
 import {
 	BadRequestException,
+	ForbiddenException,
 	Inject,
 	Injectable,
+	Logger,
 	NotFoundException,
 } from '@nestjs/common';
 import { BaseServiceAbstract } from 'src/services/base/base.abstract.service';
@@ -19,6 +21,7 @@ import {
 	hashPassword,
 } from '@modules/shared/helper/password.helper';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 @Injectable()
 export class UsersService extends BaseServiceAbstract<User> {
@@ -183,6 +186,36 @@ export class UsersService extends BaseServiceAbstract<User> {
 		return this.update(user.id, {
 			password: hashedNewPassword,
 			current_reset_password_token: null,
+		});
+	}
+
+	async blockUser(id: string) {
+		const user = await this.users_repository.findOneById(id);
+		if (!user) {
+			throw new NotFoundException();
+		}
+
+		if (!user.isActive) {
+			throw new ForbiddenException('User is already blocked');
+		}
+
+		return this.update(id, {
+			isActive: false,
+		});
+	}
+
+	async unblockUser(id: string) {
+		const user = await this.users_repository.findOneById(id);
+		if (!user) {
+			throw new NotFoundException();
+		}
+
+		if (user.isActive) {
+			throw new ForbiddenException('User is already unblocked');
+		}
+
+		return this.update(id, {
+			isActive: true,
 		});
 	}
 }
