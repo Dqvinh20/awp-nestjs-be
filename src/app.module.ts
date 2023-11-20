@@ -11,6 +11,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { EmailConfirmationModule } from '@modules/emailConfirmation/emailConfirmation.module';
+import { ClassesModule } from '@modules/classes/classes.module';
 
 @Module({
 	imports: [
@@ -74,6 +75,7 @@ import { EmailConfirmationModule } from '@modules/emailConfirmation/emailConfirm
 		UsersModule,
 		AuthModule,
 		EmailConfirmationModule,
+		ClassesModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

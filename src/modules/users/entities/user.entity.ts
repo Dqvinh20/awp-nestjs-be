@@ -102,7 +102,9 @@ export class User extends BaseEntity {
 
 	@Expose({ name: 'full_name' })
 	get fullName(): string {
-		return `${this.first_name} ${this.last_name}`;
+		return this.first_name && this.last_name
+			? `${this.first_name} ${this.last_name}`
+			: '';
 	}
 }
 
