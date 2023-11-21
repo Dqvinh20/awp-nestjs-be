@@ -7,33 +7,83 @@ import {
 	SchemaObject,
 } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 
-export function ApiDocsPagination(entity: string) {
+export function ApiDocsPagination() {
 	return applyDecorators(
 		ApiQuery({
-			name: 'offset',
-			type: Number,
+			required: false,
+			name: 'select',
+			description: `Select fields. http://mongoosejs.com/docs/api.html#query_Query-select`,
+			type: 'string',
 			examples: {
-				'0': {
-					value: 0,
-					description: 'Start from 0',
-				},
-				'10': {
-					value: 10,
-					description: `Skip 10 ${entity}s`,
+				string: {
+					value: 'name',
+					description: `Select name field`,
 				},
 			},
 		}),
 		ApiQuery({
+			required: false,
+			name: 'page',
+			description: `Current page`,
+			type: Number,
+			examples: {
+				'1': {
+					value: 1,
+					description: 'Page 1',
+				},
+				'10': {
+					value: 10,
+					description: `Page 10`,
+				},
+			},
+		}),
+		ApiQuery({
+			required: false,
 			name: 'limit',
+			description: `Page size`,
 			type: Number,
 			examples: {
 				'10': {
 					value: 10,
-					description: `Get 10 ${entity}s`,
+					description: `Get 10 entities`,
 				},
 				'50': {
 					value: 50,
-					description: `Get 50 ${entity}s`,
+					description: `Get 50 entities`,
+				},
+			},
+		}),
+		ApiQuery({
+			required: false,
+			name: 'pagination',
+			description: `Toggle pagination`,
+
+			type: Boolean,
+			examples: {
+				true: {
+					value: true,
+					description: `Turn on pagination`,
+				},
+				false: {
+					value: false,
+					description: `Turn off pagination`,
+				},
+			},
+		}),
+		ApiQuery({
+			required: false,
+			name: 'sort',
+			description: `Sort results`,
+
+			type: 'object | string',
+			examples: {
+				object: {
+					value: "{ 'created_at': 'desc' }",
+					description: `Sort by object`,
+				},
+				string: {
+					value: 'created_at',
+					description: `Sort by string`,
 				},
 			},
 		}),
