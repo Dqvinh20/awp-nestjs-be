@@ -47,6 +47,7 @@
 		"joi": "^17.9.0",
 		"lodash": "^4.17.21",
 		"mongoose": "^7.0.3",
+		"mongoose-paginate-v2": "^1.7.4",
 		"nodemailer": "^6.9.7",
 		"passport": "^0.6.0",
 		"passport-jwt": "^4.0.1",
