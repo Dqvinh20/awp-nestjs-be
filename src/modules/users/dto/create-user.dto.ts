@@ -3,6 +3,7 @@ import {
 	ArrayMinSize,
 	IsArray,
 	IsEmail,
+	IsEnum,
 	IsNotEmpty,
 	IsOptional,
 	IsStrongPassword,
@@ -10,6 +11,7 @@ import {
 	ValidateNested,
 } from 'class-validator';
 import { CreateAddressDto } from './create-address.dto';
+import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 
 export class CreateUserDto {
 	@IsNotEmpty()
@@ -20,6 +22,10 @@ export class CreateUserDto {
 	@IsNotEmpty()
 	@IsStrongPassword()
 	password: string;
+
+	@IsOptional()
+	@IsEnum(USER_ROLE)
+	role?: string;
 
 	@IsOptional()
 	@IsArray()

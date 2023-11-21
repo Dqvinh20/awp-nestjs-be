@@ -11,7 +11,46 @@ import { ClassesRepositoryInterface } from './interfaces/classes.interface';
 import { Class, ClassDocument } from './entities/class.entity';
 import { FindAllResponse } from 'src/types/common.type';
 import ShortUniqueId from 'short-unique-id';
-import { Error } from 'mongoose';
+import { PaginateResult, PopulateOptions } from 'mongoose';
+import { FindAllPaginateDto } from './dto/find-paginate.dto';
+
+const transform = (doc, id) => {
+	return {
+		...doc,
+		id: id.toString(),
+		full_name:
+			doc.first_name && doc.last_name
+				? `${doc.first_name} ${doc.last_name}`
+				: '',
+	};
+};
+
+export const populate: PopulateOptions[] = [
+	{
+		path: 'teachers',
+		select: ' first_name last_name email avatar',
+		transform,
+		options: {
+			lean: true,
+		},
+	},
+	{
+		path: 'students',
+		select: ' first_name last_name email avatar',
+		transform,
+		options: {
+			lean: true,
+		},
+	},
+	{
+		path: 'owner',
+		select: ' first_name last_name email avatar',
+		transform,
+		options: {
+			lean: true,
+		},
+	},
+];
 
 @Injectable()
 export class ClassesService extends BaseServiceAbstract<Class> {
@@ -23,6 +62,15 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	) {
 		super(classes_repo);
 		this.uid = new ShortUniqueId({ length: 7 });
+	}
+
+	async findWithPaginate(
+		body: FindAllPaginateDto,
+	): Promise<PaginateResult<Class>> {
+		return await this.classes_repo.findWithPaginate(body.query, {
+			populate,
+			...body,
+		});
 	}
 
 	async create(createClassDto: CreateClassDto) {
@@ -39,15 +87,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			.create({ ...createClassDto, code: this.uid.randomUUID() })
 			.then((entity: ClassDocument) =>
 				entity.populate(['owner', 'teachers', 'students']),
-			)
-			.catch((err) => {
-				if (err instanceof Error.ValidationError) {
-					throw new BadRequestException(
-						"Teacher can't be a student and vice versa",
-					);
-				}
-				throw new BadRequestException(err.message || 'Something went wrong');
-			});
+			);
 	}
 
 	async findAll(
@@ -56,7 +96,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	): Promise<FindAllResponse<Class>> {
 		return await this.classes_repo.findAllWithSubFields(filter, {
 			...options,
-			populate: ['teachers', 'students', 'owner'],
+			populate,
 		});
 	}
 
@@ -64,7 +104,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		return this.classes_repo.findOneById(id).then((entity: ClassDocument) => {
 			if (!entity)
 				throw new NotFoundException("Class doesn't exist or deleted");
-			return entity.populate(['teachers', 'students', 'owner']);
+			return entity.populate(populate);
 		});
 	}
 

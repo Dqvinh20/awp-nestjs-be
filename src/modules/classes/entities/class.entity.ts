@@ -28,8 +28,18 @@ export class Class extends BaseEntity {
 	name: string;
 
 	@Prop({
+		maxlength: 300,
+		default: null,
+		set: (description?: string) => {
+			return description ? description.trim() : null;
+		},
+	})
+	description: string;
+
+	@Prop({
 		required: true,
 		unique: true,
+		index: true,
 		length: 7,
 	})
 	code: string;
@@ -46,7 +56,11 @@ export class Class extends BaseEntity {
 	@Type(() => User)
 	students: User[];
 
-	@Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name })
+	@Prop({
+		required: true,
+		type: mongoose.Schema.Types.ObjectId,
+		ref: User.name,
+	})
 	@Type(() => User)
 	owner: User;
 }

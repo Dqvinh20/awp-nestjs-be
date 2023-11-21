@@ -6,6 +6,7 @@ import { Class, ClassSchema } from './entities/class.entity';
 import { MongooseModule } from '@nestjs/mongoose';
 import { intersectionWith } from 'lodash';
 import { Error } from 'mongoose';
+import * as mongoosePaginate from 'mongoose-paginate-v2';
 
 @Module({
 	imports: [
@@ -25,8 +26,17 @@ import { Error } from 'mongoose';
 						);
 						if (results.length === 0) next();
 
-						next(new Error.ValidationError());
+						const validationError = new Error.ValidationError();
+						validationError.addError(
+							'students or teachers',
+							new Error.ValidatorError({
+								message: "Teacher can't be a student and vice versa",
+							}),
+						);
+						next(validationError);
 					});
+
+					schema.plugin(mongoosePaginate);
 
 					return schema;
 				},

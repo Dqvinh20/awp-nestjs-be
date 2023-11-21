@@ -1,13 +1,31 @@
 import { BaseEntity } from '@modules/shared/base/base.entity';
-import { FilterQuery, Model, QueryOptions } from 'mongoose';
+import {
+	FilterQuery,
+	PaginateModel,
+	PaginateOptions,
+	PaginateResult,
+	QueryOptions,
+} from 'mongoose';
+import { BasePaginateRepositoryInterface } from './base_paginate.interface.repository';
 import { FindAllResponse } from 'src/types/common.type';
-import { BaseRepositoryInterface } from './base.interface.repository';
 
-export abstract class BaseRepositoryAbstract<T extends BaseEntity>
-	implements BaseRepositoryInterface<T>
+export abstract class BasePaginateRepositoryAbstract<T extends BaseEntity>
+	implements BasePaginateRepositoryInterface<T>
 {
-	protected constructor(private readonly model: Model<T>) {
+	protected constructor(private readonly model: PaginateModel<T>) {
 		this.model = model;
+	}
+
+	findWithPaginate(
+		query?: FilterQuery<T>,
+		options?: PaginateOptions,
+		callback?: (err: any, result: PaginateResult<T>) => void,
+	): Promise<PaginateResult<T>> {
+		return this.model.paginate(
+			{ ...query, deleted_at: null },
+			{ ...options, lean: true },
+			callback,
+		);
 	}
 
 	async create(dto: T | any): Promise<T> {

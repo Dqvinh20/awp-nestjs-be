@@ -1,5 +1,3 @@
-import { User } from '@modules/users/entities/user.entity';
-import { ApiProperty } from '@nestjs/swagger';
 import {
 	ArrayMinSize,
 	ArrayUnique,
@@ -16,6 +14,10 @@ export class CreateClassDto {
 	@MinLength(1)
 	@MaxLength(100)
 	name!: string;
+
+	@IsOptional()
+	@MaxLength(300)
+	description?: string;
 
 	@IsOptional()
 	@IsArray()
