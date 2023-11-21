@@ -7,7 +7,8 @@ export type UserRoleDocument = HydratedDocument<UserRole>;
 
 export enum USER_ROLE {
 	ADMIN = 'Admin',
-	USER = 'User',
+	TEACHER = 'Teacher',
+	STUDENT = 'Student',
 }
 
 @Schema({
@@ -21,7 +22,7 @@ export enum USER_ROLE {
 export class UserRole extends BaseEntity {
 	@Prop({
 		unique: true,
-		default: USER_ROLE.USER,
+		default: USER_ROLE.STUDENT,
 		enum: USER_ROLE,
 		required: true,
 	})

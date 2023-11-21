@@ -101,17 +101,19 @@ export class User extends BaseEntity {
 	current_reset_password_token: string;
 
 	@Expose({ name: 'full_name' })
-	get fullName(): string {
-		return this.first_name && this.last_name
-			? `${this.first_name} ${this.last_name}`
-			: '';
-	}
+	full_name: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
 export const UserSchemaFactory = () => {
 	const user_schema = UserSchema;
+
+	UserSchema.virtual('full_name').get(function (this: UserDocument) {
+		return this.first_name && this.last_name
+			? `${this.first_name} ${this.last_name}`
+			: '';
+	});
 
 	user_schema.virtual('default_address').get(function (this: UserDocument) {
 		if (this.address.length) {

@@ -10,11 +10,12 @@ import {
 	SerializeOptions,
 	UseGuards,
 	BadRequestException,
+	Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
+import { User, UserDocument } from './entities/user.entity';
 import MongooseClassSerializerInterceptor from 'src/interceptors/mongoose-class-serializer.interceptor';
 import { JwtAccessTokenGuard } from '@modules/auth/guards/jwt-access-token.guard';
 import { Roles } from 'src/decorators/roles.decorator';
@@ -26,11 +27,13 @@ import {
 	ApiTags,
 	ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { isEmail, isMongoId } from 'class-validator';
+import { isEmail, isEnum, isMongoId } from 'class-validator';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { Public } from 'src/decorators/auth.decorator';
+import { RequestWithUser } from 'src/types/requests.type';
+import { UserRolesService } from '@modules/user-roles/user-roles.service';
 
 @ApiBearerAuth()
 @Controller('users')
@@ -51,10 +54,10 @@ import { Public } from 'src/decorators/auth.decorator';
 export class UsersController {
 	constructor(
 		private readonly users_service: UsersService,
+		private readonly user_roles_service: UserRolesService,
 		private readonly email_service: MailerService,
 	) {}
 
-	@Post()
 	@ApiOperation({
 		summary: 'Admin create new user',
 		description: `
@@ -63,6 +66,7 @@ export class UsersController {
 * Admin create user and give some specific information`,
 	})
 	@Roles(USER_ROLE.ADMIN)
+	@Post()
 	create(@Body() create_user_dto: CreateUserDto) {
 		return this.users_service.create(create_user_dto);
 	}
@@ -70,6 +74,7 @@ export class UsersController {
 	@SerializeOptions({
 		excludePrefixes: ['first', 'last'],
 	})
+	@Roles(USER_ROLE.ADMIN)
 	@Get()
 	findAll() {
 		return this.users_service.findAll();
@@ -84,11 +89,37 @@ export class UsersController {
 	}
 
 	@Patch(':id')
-	update(@Param('id') id: string, @Body() update_user_dto: UpdateUserDto) {
+	async update(
+		@Req() req: RequestWithUser,
+		@Param('id') id: string,
+		@Body() update_user_dto: UpdateUserDto,
+		@Body('role') role: USER_ROLE,
+	) {
 		if (!isMongoId(id)) {
 			throw new BadRequestException("Invalid user's id");
 		}
-		return this.users_service.update(id, update_user_dto);
+
+		// Admin can update user's role
+		const { user } = req;
+		if ((user.role as unknown as string) === USER_ROLE.ADMIN && role) {
+			if (!isEnum(role, USER_ROLE)) {
+				throw new BadRequestException('Invalid role');
+			}
+
+			const newRole = await this.user_roles_service.findOneByCondition({
+				name: role,
+			});
+			return this.users_service
+				.update(id, {
+					...update_user_dto,
+					role: newRole,
+				})
+				.then((user: UserDocument) => user.populate('role'));
+		}
+
+		return this.users_service
+			.update(id, update_user_dto)
+			.then((user: UserDocument) => user.populate('role'));
 	}
 
 	@ApiOperation({
@@ -109,7 +140,6 @@ export class UsersController {
 			update_user_password_dto,
 		);
 	}
-
 	@Delete(':id')
 	@Roles(USER_ROLE.ADMIN)
 	remove(@Param('id') id: string) {
