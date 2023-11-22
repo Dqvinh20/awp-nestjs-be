@@ -17,9 +17,9 @@ import { UpdateClassDto } from './dto/update-class.dto';
 import {
 	ApiBadRequestResponse,
 	ApiBody,
+	ApiCreatedResponse,
 	ApiForbiddenResponse,
 	ApiNotFoundResponse,
-	ApiOkResponse,
 	ApiOperation,
 	ApiQuery,
 	ApiTags,
@@ -45,22 +45,34 @@ export class ClassesController {
 
 	@ApiOperation({
 		summary: 'Create a class',
-		description:
-			'Admin and teacher can create a class.<br/>Teacher and student must be unique',
+		description: `
+* Admin can create a class with teacher and students.
+* Teacher can create a class then add students and teachers later.
+* Teachers and students must be unique.`,
 	})
 	@ApiBody({
 		type: CreateClassDto,
 		examples: {
-			'Create a class': {
+			'Admin create example class': {
 				value: {
-					name: 'Class 1',
-					description: 'Class 1 description',
+					name: 'Example Class',
+					description: 'Class description',
 					teachers: ['Mongo ObjectId'],
 					students: ['Mongo ObjectId'],
 					owner: 'Mongo ObjectId',
 				},
 			},
+			'Teacher create example class': {
+				value: {
+					name: 'Example Class',
+					description: 'Class description',
+				},
+			},
 		},
+	})
+	@ApiCreatedResponse({
+		description: 'The class has been successfully created.',
+		type: Class,
 	})
 	@ApiForbiddenResponse({
 		description: 'Permission denied',
@@ -200,7 +212,7 @@ export class ClassesController {
 * User can not send invitation mail to himself
 * Class must be joinable`,
 	})
-	@ApiOkResponse({
+	@ApiCreatedResponse({
 		content: {
 			'application/json': {
 				example: 'Invitation link has been sent to email',
