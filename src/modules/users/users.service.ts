@@ -3,7 +3,6 @@ import {
 	ForbiddenException,
 	Inject,
 	Injectable,
-	Logger,
 	NotFoundException,
 } from '@nestjs/common';
 import { BaseServiceAbstract } from 'src/services/base/base.abstract.service';
@@ -21,7 +20,6 @@ import {
 	hashPassword,
 } from '@modules/shared/helper/password.helper';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
-import { SchedulerRegistry } from '@nestjs/schedule';
 
 @Injectable()
 export class UsersService extends BaseServiceAbstract<User> {
