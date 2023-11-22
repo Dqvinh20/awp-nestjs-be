@@ -190,4 +190,26 @@ export class UsersController {
 
 		return 'Reset password successfully';
 	}
+
+	@Get(':id/block')
+	@Roles(USER_ROLE.ADMIN)
+	async blockUser(@Param('id') id: string) {
+		if (!isMongoId(id)) {
+			throw new BadRequestException("Invalid user's id");
+		}
+		return await this.users_service
+			.blockUser(id)
+			.then(() => 'Blocked user successfully');
+	}
+
+	@Get(':id/unblock')
+	@Roles(USER_ROLE.ADMIN)
+	async unblockUser(@Param('id') id: string) {
+		if (!isMongoId(id)) {
+			throw new BadRequestException("Invalid user's id");
+		}
+		return await this.users_service
+			.unblockUser(id)
+			.then(() => 'Unblocked user successfully');
+	}
 }
