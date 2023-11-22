@@ -5180,6 +5180,11 @@ mongodb@5.9.0:
   optionalDependencies:
     "@mongodb-js/saslprep" "^1.1.0"
 
+mongoose-paginate-v2@^1.7.4:
+  version "1.7.4"
+  resolved "https://registry.yarnpkg.com/mongoose-paginate-v2/-/mongoose-paginate-v2-1.7.4.tgz#f2ce1def9598b81b251df19eeb53982283fdc986"
+  integrity sha512-2oUOH/2hrtW0Ki5dJbwxsLBeVafVBfE84QiJsr7tYBQVxUk1v5usDvRa29LpBtANMpBe7eeLUTI2tyjLSk3/Yg==
+
 mongoose@^7.0.3:
   version "7.6.4"
   resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-7.6.4.tgz#2f6b796789d0d24636cd7607d7d9c7a302bb550b"
@@ -6276,6 +6281,11 @@ shelljs@0.8.5:
     glob "^7.0.0"
     interpret "^1.0.0"
     rechoir "^0.6.2"
+
+short-unique-id@^5.0.3:
+  version "5.0.3"
+  resolved "https://registry.yarnpkg.com/short-unique-id/-/short-unique-id-5.0.3.tgz#bc6975dc5e8b296960ff5ac91ddabbc7ddb693d9"
+  integrity sha512-yhniEILouC0s4lpH0h7rJsfylZdca10W9mDJRAFh3EpcSUanCHGb0R7kcFOIUCZYSAPo0PUD5ZxWQdW0T4xaug==
 
 side-channel@^1.0.4:
   version "1.0.4"

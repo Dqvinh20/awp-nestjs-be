@@ -21,6 +21,7 @@ async function bootstrap() {
 	app.useStaticAssets(join(__dirname, './served'));
 	app.useGlobalPipes(
 		new ValidationPipe({
+			transform: true,
 			whitelist: true,
 		}),
 	);

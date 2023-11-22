@@ -4,7 +4,7 @@ import { GENDER } from '../entities/user.entity';
 import { CreateUserDto } from './create-user.dto';
 
 export class UpdateUserDto extends PartialType(
-	OmitType(CreateUserDto, ['email', 'password'] as const),
+	OmitType(CreateUserDto, ['email', 'password', 'role'] as const),
 ) {
 	@IsOptional()
 	@MaxLength(50)

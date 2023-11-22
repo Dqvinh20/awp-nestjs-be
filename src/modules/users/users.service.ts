@@ -38,11 +38,11 @@ export class UsersService extends BaseServiceAbstract<User> {
 
 	async create(create_dto: CreateUserDto): Promise<User> {
 		let user_role = await this.user_roles_service.findOneByCondition({
-			name: USER_ROLE.USER,
+			name: create_dto.role ?? USER_ROLE.STUDENT,
 		});
 		if (!user_role) {
 			user_role = await this.user_roles_service.create({
-				name: USER_ROLE.USER,
+				name: create_dto.role ?? USER_ROLE.STUDENT,
 			});
 		}
 		const user = await this.users_repository.create({
