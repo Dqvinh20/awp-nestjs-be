@@ -83,13 +83,15 @@ export const ClassSchema = SchemaFactory.createForClass(Class);
 export const ClassSchemaFactory = async (configService: ConfigService) => {
 	const class_schema = ClassSchema;
 
-	class_schema.virtual('invitation_link').get(function (this: ClassDocument) {
-		if (this.isJoinable) {
-			return `${configService.get<string>('BASE_FE_URL')}/classes/join?code=${
-				this.code
-			}`;
-		}
-	});
+	class_schema
+		.virtual('public_invitation_link')
+		.get(function (this: ClassDocument) {
+			if (this.isJoinable) {
+				return `${configService.get<string>('BASE_FE_URL')}/classes/join?c=${
+					this.code
+				}`;
+			}
+		});
 
 	class_schema.pre('save', function (next) {
 		const results = intersectionWith(this.teachers, this.students, (a, b) => {
