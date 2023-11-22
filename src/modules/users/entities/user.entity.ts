@@ -3,7 +3,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { Address, AddressSchema } from './address.entity';
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
-import { UserRole } from '@modules/user-roles/entities/user-role.entity';
+import {
+	USER_ROLE,
+	UserRole,
+} from '@modules/user-roles/entities/user-role.entity';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -43,6 +46,19 @@ export class User extends BaseEntity {
 		},
 	})
 	last_name: string;
+
+	@Prop({
+		unique: true,
+	})
+	@Transform(
+		({ value, obj }) => {
+			if (obj?.role === USER_ROLE.STUDENT) {
+				return value;
+			}
+		},
+		{ toClassOnly: true },
+	)
+	student_id: string;
 
 	@Prop({
 		required: true,

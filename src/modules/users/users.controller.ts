@@ -23,6 +23,7 @@ import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 import {
 	ApiBearerAuth,
+	ApiOkResponse,
 	ApiOperation,
 	ApiTags,
 	ApiUnauthorizedResponse,
@@ -32,8 +33,8 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { Public } from 'src/decorators/auth.decorator';
-import { RequestWithUser } from 'src/types/requests.type';
 import { UserRolesService } from '@modules/user-roles/user-roles.service';
+import { Role } from 'src/decorators/role.decorator';
 
 @ApiBearerAuth()
 @Controller('users')
@@ -80,6 +81,21 @@ export class UsersController {
 		return this.users_service.findAll();
 	}
 
+	@ApiBearerAuth()
+	@ApiOperation({
+		summary: 'Get current logged user info',
+		description: ``,
+	})
+	@ApiOkResponse({
+		description: 'Return current logged user info',
+	})
+	@UseGuards(JwtAccessTokenGuard)
+	@Get('/me')
+	async getCurrentUserInfo(@Req() request) {
+		const { user } = request;
+		return user;
+	}
+
 	@Get(':id')
 	async findOne(@Param('id') id: string) {
 		if (!isMongoId(id)) {
@@ -88,20 +104,26 @@ export class UsersController {
 		return await this.users_service.findOne(id);
 	}
 
+	@ApiOperation({
+		summary: 'User update infor',
+		description: `
+* Student can update student id
+
+* Teacher can't update student id`,
+	})
 	@Patch(':id')
 	async update(
-		@Req() req: RequestWithUser,
 		@Param('id') id: string,
 		@Body() update_user_dto: UpdateUserDto,
 		@Body('role') role: USER_ROLE,
+		@Role() authRole: USER_ROLE,
 	) {
 		if (!isMongoId(id)) {
 			throw new BadRequestException("Invalid user's id");
 		}
 
 		// Admin can update user's role
-		const { user } = req;
-		if ((user.role as unknown as string) === USER_ROLE.ADMIN && role) {
+		if (authRole === USER_ROLE.ADMIN && role) {
 			if (!isEnum(role, USER_ROLE)) {
 				throw new BadRequestException('Invalid role');
 			}
@@ -115,6 +137,15 @@ export class UsersController {
 					role: newRole,
 				})
 				.then((user: UserDocument) => user.populate('role'));
+		}
+
+		// Teacher can't update any student_id
+		if (authRole === USER_ROLE.TEACHER) {
+			delete update_user_dto?.student_id;
+		}
+
+		if (update_user_dto.student_id && update_user_dto?.student_id === '') {
+			throw new BadRequestException('Student id can not be empty');
 		}
 
 		return this.users_service
