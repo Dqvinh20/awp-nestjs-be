@@ -28,6 +28,22 @@ import { ClassesModule } from '@modules/classes/classes.module';
 				DATABASE_URI: Joi.string().required(),
 				MAIL_USER: Joi.string().required(),
 				MAIL_PASS: Joi.string().required(),
+
+				BASE_FE_URL: Joi.string().required(),
+
+				JWT_VERIFICATION_TOKEN_SECRET: Joi.string().required(),
+				JWT_VERIFICATION_TOKEN_EXPIRATION_TIME: Joi.number().required(),
+				EMAIL_CONFIRMATION_URL: Joi.string().required(),
+
+				JWT_PASSWORD_RESET_TOKEN_SECRET: Joi.string().required(),
+				JWT_PASSWORD_RESET_TOKEN_EXPIRATION_TIME: Joi.number().required(),
+				PASSWORD_RESET_URL: Joi.string().required(),
+
+				GOOGLE_AUTH_CLIENT_ID: Joi.string().required(),
+				GOOGLE_AUTH_CLIENT_SECRET: Joi.string().required(),
+
+				JWT_INVITATION_TOKEN_SECRET: Joi.string().required(),
+				JWT_INVITATION_TOKEN_EXPIRATION_TIME: Joi.number().required(),
 			}),
 			validationOptions: {
 				abortEarly: false,
