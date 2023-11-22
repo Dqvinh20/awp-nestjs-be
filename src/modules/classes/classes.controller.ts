@@ -10,6 +10,8 @@ import {
 	Req,
 	BadRequestException,
 	Query,
+	Res,
+	StreamableFile,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
@@ -21,6 +23,7 @@ import {
 	ApiForbiddenResponse,
 	ApiNotFoundResponse,
 	ApiOperation,
+	ApiParam,
 	ApiQuery,
 	ApiTags,
 } from '@nestjs/swagger';
@@ -35,6 +38,15 @@ import { User } from '@modules/users/entities/user.entity';
 import { AuthUser } from 'src/decorators/auth_user.decorator';
 import { NeedAuth } from 'src/decorators/need_auth.decorator';
 import { InvitationSendDto } from './dto/invitation-send.dto';
+import { isMongoId } from 'class-validator';
+import type { Response } from 'express';
+
+export enum EXPORT_FILE_TYPE {
+	CSV = 'csv',
+	XLSX = 'xlsx',
+}
+
+export const EXPORT_FILE_TYPE_ARRAY = Object.values(EXPORT_FILE_TYPE);
 
 @NeedAuth()
 @ApiTags('classes')
@@ -114,6 +126,66 @@ export class ClassesController {
 		}
 		body.query = { ...query };
 		return this.classesService.findWithPaginate(body);
+	}
+
+	// @Roles(USER_ROLE.TEACHER)
+	@ApiParam({
+		name: 'id',
+		description: 'Class id',
+	})
+	@ApiQuery({
+		required: false,
+		name: 'file_type',
+		examples: {
+			'Export to csv': {
+				value: 'csv',
+			},
+			'Export to xlsx': {
+				value: 'xlsx',
+			},
+		},
+		description: 'File type for download. Support csv and xlsx',
+	})
+	@Post(':id/download/student-list')
+	async downloadStudentListTemplate(
+		@Param('id') id: string,
+		@Query('file_type') file_type = EXPORT_FILE_TYPE.CSV,
+		@Res({ passthrough: true }) res: Response,
+		@AuthUser() user: User,
+	): Promise<StreamableFile> {
+		if (!EXPORT_FILE_TYPE_ARRAY.includes(file_type)) {
+			throw new BadRequestException(
+				`Invalid file type. Support [${EXPORT_FILE_TYPE_ARRAY.join(', ')}]`,
+			);
+		}
+		if (!isMongoId(id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		const classDetail = await this.findOne(id);
+		if (classDetail.owner.id !== user.id) {
+			throw new BadRequestException('Only owner can download student list');
+		}
+		const data = classDetail.students.map((student) => {
+			return {
+				student_id: student.student_id,
+				full_name: student.full_name,
+			};
+		});
+		const buffer = await this.classesService.createWorkbookStudentList(
+			data,
+			file_type,
+		);
+
+		if (file_type === EXPORT_FILE_TYPE.CSV) {
+			res.type('text/csv');
+		} else if (file_type === EXPORT_FILE_TYPE.XLSX) {
+			res.type(
+				'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			);
+		}
+		res.attachment(`${classDetail.name}_student_list.${file_type}`);
+
+		return new StreamableFile(buffer);
 	}
 
 	@ApiOperation({
