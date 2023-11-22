@@ -15,10 +15,13 @@ import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 import {
+	ApiBadRequestResponse,
 	ApiBody,
 	ApiForbiddenResponse,
 	ApiNotFoundResponse,
+	ApiOkResponse,
 	ApiOperation,
+	ApiQuery,
 	ApiTags,
 } from '@nestjs/swagger';
 import { Class } from './entities/class.entity';
@@ -31,6 +34,7 @@ import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 import { User } from '@modules/users/entities/user.entity';
 import { AuthUser } from 'src/decorators/auth_user.decorator';
 import { NeedAuth } from 'src/decorators/need_auth.decorator';
+import { InvitationSendDto } from './dto/invitation-send.dto';
 
 @NeedAuth()
 @ApiTags('classes')
@@ -98,6 +102,210 @@ export class ClassesController {
 		}
 		body.query = { ...query };
 		return this.classesService.findWithPaginate(body);
+	}
+
+	@ApiOperation({
+		summary: 'Join class by code or link',
+	})
+	@ApiQuery({
+		required: false,
+		name: 'c',
+		description: 'Class code.Required if not use link',
+	})
+	@ApiQuery({
+		required: false,
+		name: 't',
+		description: 'Token for joining with link.Required if not use code',
+	})
+	@ApiBadRequestResponse({
+		content: {
+			'application/json': {
+				examples: {
+					'Invalid code length': {
+						value: {
+							statusCode: 400,
+							message: 'Invalid code length',
+							error: 'Bad Request',
+						},
+					},
+
+					'Class not found': {
+						value: {
+							statusCode: 400,
+							message: 'Class not found',
+							error: 'Bad Request',
+						},
+					},
+					'User already in class': {
+						value: {
+							statusCode: 400,
+							message: 'User already in class',
+							error: 'Bad Request',
+						},
+					},
+					'Owner can not join class': {
+						value: {
+							statusCode: 400,
+							message: 'Owner can not join class',
+							error: 'Bad Request',
+						},
+					},
+					'Class is closed for joining': {
+						value: {
+							statusCode: 400,
+							message: 'Class is closed for joining',
+							error: 'Bad Request',
+						},
+					},
+					'Invitation token expired': {
+						value: {
+							statusCode: 400,
+							message: 'Invitation token expired. Please send again',
+							error: 'Bad Request',
+						},
+					},
+					'Bad invitation token token': {
+						value: {
+							statusCode: 400,
+							message: 'Bad invitation token token',
+							error: 'Bad Request',
+						},
+					},
+				},
+			},
+		},
+	})
+	@Get('join')
+	async join(
+		@AuthUser() user,
+		@Query('c') code?: string,
+		@Query('t') token?: string,
+	) {
+		if (!code && !token)
+			throw new BadRequestException('Must provide code or token');
+		if (code)
+			return await this.classesService
+				.joinByCode(code, user)
+				.then(() => 'User joined class successfully');
+		if (token)
+			return await this.classesService
+				.joinByToken(token, user)
+				.then(() => 'User joined class successfully');
+	}
+
+	@ApiOperation({
+		summary: 'Send link for student or teacher to join class by email',
+		description: `
+* Only teacher or owner in the class can send invitation mail
+* User can not send invitation mail to himself
+* Class must be joinable`,
+	})
+	@ApiOkResponse({
+		content: {
+			'application/json': {
+				example: 'Invitation link has been sent to email',
+			},
+		},
+	})
+	@ApiBadRequestResponse({
+		content: {
+			'application/json': {
+				examples: {
+					'Invalid code length': {
+						value: {
+							statusCode: 400,
+							message: 'Invalid code length',
+							error: 'Bad Request',
+						},
+					},
+					'User not found': {
+						value: {
+							statusCode: 400,
+							message: 'User not found',
+							error: 'Bad Request',
+						},
+					},
+					'User already in class': {
+						value: {
+							statusCode: 400,
+							message: 'User already in class',
+							error: 'Bad Request',
+						},
+					},
+					'Owner can not join class': {
+						value: {
+							statusCode: 400,
+							message: 'Owner can not join class',
+							error: 'Bad Request',
+						},
+					},
+					'Only teacher in the class can invite': {
+						value: {
+							statusCode: 400,
+							message: 'Only teacher in the class can invite',
+							error: 'Bad Request',
+						},
+					},
+					'Class is closed for joining': {
+						value: {
+							statusCode: 400,
+							message: 'Class is closed for joining',
+							error: 'Bad Request',
+						},
+					},
+				},
+			},
+		},
+	})
+	@Roles(USER_ROLE.TEACHER)
+	@Post('send-link-to-email')
+	async sendInvitationLink(
+		@AuthUser() user: User,
+		@Body() invitationSendDto: InvitationSendDto,
+	) {
+		return await this.classesService
+			.sendInvitationLink(user, invitationSendDto)
+			.then(() => 'Invitation link has been sent to email')
+			.catch((err) => {
+				throw new BadRequestException(err.message || 'Something went wrong');
+			});
+	}
+
+	@ApiOperation({
+		summary: 'Get class detail by class code',
+	})
+	@ApiBadRequestResponse({
+		content: {
+			'application/json': {
+				examples: {
+					'Invalid code length': {
+						value: {
+							statusCode: 400,
+							message: 'Invalid code length',
+							error: 'Bad Request',
+						},
+					},
+				},
+			},
+		},
+	})
+	@ApiNotFoundResponse({
+		description: 'Class not found',
+		schema: {
+			type: 'object',
+			example: {
+				statusCode: 404,
+				message: "Class doesn't exist or deleted",
+				error: 'Not Found',
+			},
+		},
+	})
+	@Get('code/:code')
+	findOneByCode(@Param('code') code: string) {
+		if (code.length !== 7) throw new BadRequestException('Invalid code length');
+		return this.classesService.findOneByCondition({
+			code,
+		});
 	}
 
 	@ApiOperation({

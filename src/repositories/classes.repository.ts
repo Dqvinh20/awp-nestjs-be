@@ -1,17 +1,11 @@
 import { ClassesRepositoryInterface } from '@modules/classes/interfaces/classes.interface';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-	FilterQuery,
-	PaginateModel,
-	PaginateOptions,
-	PaginateResult,
-	PopulateOptions,
-} from 'mongoose';
-import { BaseRepositoryAbstract } from './base/base.abstract.repository';
+import { FilterQuery, PaginateModel, PopulateOptions, Types } from 'mongoose';
 import { Class, ClassDocument } from '@modules/classes/entities/class.entity';
 import { FindAllResponse } from 'src/types/common.type';
 import { BasePaginateRepositoryAbstract } from './base/base_paginate.abstract.repository';
+import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 
 @Injectable()
 export class ClassesRepository
@@ -23,6 +17,27 @@ export class ClassesRepository
 		private readonly class_model: PaginateModel<ClassDocument>,
 	) {
 		super(class_model);
+	}
+
+	async addMember(id: string, member_id: string, member_role: USER_ROLE) {
+		const updateQuery = {
+			[member_role === USER_ROLE.TEACHER ? 'teachers' : 'students']:
+				new Types.ObjectId(member_id),
+		};
+		console.log(updateQuery);
+
+		return await this.class_model.findOneAndUpdate(
+			{
+				_id: id,
+				deleted_at: null,
+			},
+			{
+				$push: updateQuery,
+			},
+			{
+				new: true,
+			},
+		);
 	}
 
 	async findAllWithSubFields(
