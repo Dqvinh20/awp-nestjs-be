@@ -44,7 +44,7 @@ export const populate: PopulateOptions[] = [
 	},
 	{
 		path: 'students',
-		select: ' first_name last_name email avatar',
+		select: 'student_id first_name last_name email avatar',
 		transform,
 		options: {
 			lean: true,

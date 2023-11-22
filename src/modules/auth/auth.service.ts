@@ -22,6 +22,7 @@ import {
 	comparePassword,
 	hashPassword,
 } from '@modules/shared/helper/password.helper';
+import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 
 @Injectable()
 export class AuthService {
@@ -31,15 +32,43 @@ export class AuthService {
 		private readonly jwt_service: JwtService,
 	) {}
 
+	async checkBeforeSignUp(sign_up_dto: SignUpDto) {
+		const { role, email, student_id } = sign_up_dto;
+		let query: any = { email };
+		switch (role) {
+			case USER_ROLE.STUDENT:
+				{
+					if (!sign_up_dto.student_id) {
+						throw new BadRequestException('Student ID is required!!');
+					}
+					query = {
+						$or: [{ email: email }, { student_id: student_id }],
+					};
+				}
+				break;
+			case USER_ROLE.TEACHER: {
+				if (sign_up_dto.student_id) {
+					throw new BadRequestException(
+						'Student ID is not required for teacher!!',
+					);
+				}
+			}
+			default:
+				break;
+		}
+
+		const existed_user = await this.users_service.findOneByCondition(query);
+		if (existed_user) {
+			throw new ConflictException('Email already existed!!');
+		}
+	}
+
 	async signUp(sign_up_dto: SignUpDto) {
 		try {
-			const existed_user = await this.users_service.findOneByCondition({
-				email: sign_up_dto.email,
-			});
-			if (existed_user) {
-				throw new ConflictException('Email already existed!!');
-			}
+			await this.checkBeforeSignUp(sign_up_dto);
+
 			const hashed_password = hashPassword(sign_up_dto.password);
+
 			const user = await this.users_service.create({
 				...sign_up_dto,
 				password: hashed_password,

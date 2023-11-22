@@ -1,48 +1,13 @@
-import {
-	Controller,
-	Get,
-	Req,
-	UseGuards,
-	UseInterceptors,
-} from '@nestjs/common';
-import { AppService } from './app.service';
-import { UsersService } from '@modules/users/users.service';
-import { JwtAccessTokenGuard } from '@modules/auth/guards/jwt-access-token.guard';
-import {
-	ApiBearerAuth,
-	ApiOkResponse,
-	ApiOperation,
-	ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
-import MongooseClassSerializerInterceptor from './interceptors/mongoose-class-serializer.interceptor';
-import { User } from '@modules/users/entities/user.entity';
-import { MailerService } from '@nestjs-modules/mailer';
+import { Controller, Get } from '@nestjs/common';
 
-@Controller()
-@ApiUnauthorizedResponse({
-	description: 'Unauthorized',
-	schema: {
-		type: 'object',
-		example: {
-			statusCode: 401,
-			message: 'Unauthorized',
-		},
-	},
-})
-@UseInterceptors(MongooseClassSerializerInterceptor(User))
+@Controller('/')
 export class AppController {
-	@ApiBearerAuth()
-	@ApiOperation({
-		summary: 'Get current logged user infor',
-		description: ``,
-	})
-	@ApiOkResponse({
-		description: 'Return current logged user infor',
-	})
-	@UseGuards(JwtAccessTokenGuard)
-	@Get('/me')
-	async getCurrentUserInfo(@Req() request) {
-		const { user } = request;
-		return user;
+	@Get('/')
+	async checkLive() {
+		return `<html>
+		<body>
+		Live and kicking! Swagger docs available at <a href = "/api-docs" > /api-docs</a>
+		</body>
+		</html>`;
 	}
 }
