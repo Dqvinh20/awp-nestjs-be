@@ -4,7 +4,6 @@ import {
 	HttpCode,
 	Post,
 	Req,
-	Res,
 	UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -24,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { EmailConfirmationService } from '@modules/emailConfirmation/emailConfirmation.service';
 import { JwtAccessTokenGuard } from './guards/jwt-access-token.guard';
+import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -42,16 +42,19 @@ export class AuthController {
 	@ApiBody({
 		type: SignUpDto,
 		examples: {
-			user_1: {
+			student: {
 				value: {
 					email: 'johndoe@example.com',
 					password: '1232@asdS',
+					student_id: '20176082',
+					role: USER_ROLE.STUDENT,
 				} as SignUpDto,
 			},
-			user_2: {
+			teacher: {
 				value: {
-					email: 'michaelsmith@example.com',
-					password: '1232@asdS',
+					email: 'teacher@example.com',
+					password: 'Teacher@1234',
+					role: USER_ROLE.TEACHER,
 				} as SignUpDto,
 			},
 		},
@@ -89,6 +92,20 @@ export class AuthController {
 							error: 'Bad Request',
 						},
 					},
+					student_id_required_for_student: {
+						value: {
+							statusCode: 400,
+							message: 'Student ID is required!!',
+							error: 'Bad Request',
+						},
+					},
+					student_id_not_required_for_teacher: {
+						value: {
+							statusCode: 400,
+							message: 'Student ID is not required for teacher!!',
+							error: 'Bad Request',
+						},
+					},
 				},
 			},
 		},
@@ -102,13 +119,6 @@ export class AuthController {
 						value: {
 							statusCode: 409,
 							message: 'Email already existed!!',
-							error: 'Conflict',
-						},
-					},
-					username_duplication: {
-						value: {
-							statusCode: 409,
-							message: 'Username already existed!!',
 							error: 'Conflict',
 						},
 					},
