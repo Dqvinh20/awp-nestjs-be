@@ -7,7 +7,6 @@ import {
 	Param,
 	Delete,
 	UseInterceptors,
-	Req,
 	BadRequestException,
 	Query,
 	Res,
@@ -33,7 +32,6 @@ import {
 } from '@nestjs/swagger';
 import { Class } from './entities/class.entity';
 import MongooseClassSerializerInterceptor from 'src/interceptors/mongoose-class-serializer.interceptor';
-import { RequestWithUser } from 'src/types/requests.type';
 import { FindAllPaginateDto } from './dto/find-paginate.dto';
 import { Roles } from 'src/decorators/roles.decorator';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
@@ -45,6 +43,8 @@ import { InvitationSendDto } from './dto/invitation-send.dto';
 import { isMongoId } from 'class-validator';
 import type { Response } from 'express';
 import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
+import { intersection } from 'lodash';
+import { Role } from 'src/decorators/role.decorator';
 
 export enum EXPORT_FILE_TYPE {
 	CSV = 'csv',
@@ -106,10 +106,42 @@ export class ClassesController {
 	})
 	@Roles(USER_ROLE.ADMIN, USER_ROLE.TEACHER)
 	@Post()
-	create(@Req() req: RequestWithUser, @Body() createClassDto: CreateClassDto) {
-		if (!createClassDto.owner) {
-			createClassDto.owner = req.user.id;
+	create(
+		@AuthUser() user: User,
+		@Role() userRole: USER_ROLE,
+		@Body() createClassDto: CreateClassDto,
+	) {
+		if (userRole === USER_ROLE.TEACHER) {
+			createClassDto.owner = user.id;
+			createClassDto.teachers = [];
+			createClassDto.students = [];
+		} else {
+			if (!createClassDto.owner) {
+				throw new BadRequestException('Owner is required');
+			}
+
+			const { teachers, students, owner } = createClassDto;
+			const hasTeachers = teachers && teachers.length !== 0;
+			const hasStudents = students && students.length !== 0;
+			if (hasTeachers && teachers.includes(owner)) {
+				throw new BadRequestException('Owner is already is a teacher');
+			}
+
+			if (hasStudents && students.includes(owner)) {
+				throw new BadRequestException('Owner can not be a student');
+			}
+
+			if (
+				hasStudents &&
+				hasTeachers &&
+				intersection(teachers, students).length !== 0
+			) {
+				throw new BadRequestException(
+					'Teachers and students can not have same user',
+				);
+			}
 		}
+
 		return this.classesService.create(createClassDto).catch((err) => {
 			throw new BadRequestException(err.message || 'Something went wrong');
 		});

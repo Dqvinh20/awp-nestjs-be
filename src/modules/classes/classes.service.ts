@@ -87,15 +87,6 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	}
 
 	async create(createClassDto: CreateClassDto) {
-		if (
-			createClassDto.teachers.includes(createClassDto.owner) ||
-			createClassDto.students.includes(createClassDto.owner)
-		) {
-			throw new BadRequestException(
-				"Owner can't be a teacher or student and vice versa",
-			);
-		}
-
 		return await this.classes_repo
 			.create({ ...createClassDto, code: this.uid.randomUUID() })
 			.then((entity: ClassDocument) =>
