@@ -7,9 +7,14 @@ import {
 	Param,
 	Delete,
 	UseInterceptors,
-	Req,
 	BadRequestException,
 	Query,
+	Res,
+	StreamableFile,
+	UploadedFile,
+	ParseFilePipe,
+	MaxFileSizeValidator,
+	FileTypeValidator,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
@@ -21,12 +26,12 @@ import {
 	ApiForbiddenResponse,
 	ApiNotFoundResponse,
 	ApiOperation,
+	ApiParam,
 	ApiQuery,
 	ApiTags,
 } from '@nestjs/swagger';
 import { Class } from './entities/class.entity';
 import MongooseClassSerializerInterceptor from 'src/interceptors/mongoose-class-serializer.interceptor';
-import { RequestWithUser } from 'src/types/requests.type';
 import { FindAllPaginateDto } from './dto/find-paginate.dto';
 import { Roles } from 'src/decorators/roles.decorator';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
@@ -35,6 +40,20 @@ import { User } from '@modules/users/entities/user.entity';
 import { AuthUser } from 'src/decorators/auth_user.decorator';
 import { NeedAuth } from 'src/decorators/need_auth.decorator';
 import { InvitationSendDto } from './dto/invitation-send.dto';
+import { isMongoId } from 'class-validator';
+import type { Response } from 'express';
+import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
+import { intersection } from 'lodash';
+import { Role } from 'src/decorators/role.decorator';
+
+export enum EXPORT_FILE_TYPE {
+	CSV = 'csv',
+	XLSX = 'xlsx',
+}
+
+export const EXPORT_FILE_TYPE_ARRAY = Object.values(EXPORT_FILE_TYPE);
+
+export const MAX_IMPORT_FILE_SIZE = 1000 * 1000; // 1MB
 
 @NeedAuth()
 @ApiTags('classes')
@@ -87,10 +106,42 @@ export class ClassesController {
 	})
 	@Roles(USER_ROLE.ADMIN, USER_ROLE.TEACHER)
 	@Post()
-	create(@Req() req: RequestWithUser, @Body() createClassDto: CreateClassDto) {
-		if (!createClassDto.owner) {
-			createClassDto.owner = req.user.id;
+	create(
+		@AuthUser() user: User,
+		@Role() userRole: USER_ROLE,
+		@Body() createClassDto: CreateClassDto,
+	) {
+		if (userRole === USER_ROLE.TEACHER) {
+			createClassDto.owner = user.id;
+			createClassDto.teachers = [];
+			createClassDto.students = [];
+		} else {
+			if (!createClassDto.owner) {
+				throw new BadRequestException('Owner is required');
+			}
+
+			const { teachers, students, owner } = createClassDto;
+			const hasTeachers = teachers && teachers.length !== 0;
+			const hasStudents = students && students.length !== 0;
+			if (hasTeachers && teachers.includes(owner)) {
+				throw new BadRequestException('Owner is already is a teacher');
+			}
+
+			if (hasStudents && students.includes(owner)) {
+				throw new BadRequestException('Owner can not be a student');
+			}
+
+			if (
+				hasStudents &&
+				hasTeachers &&
+				intersection(teachers, students).length !== 0
+			) {
+				throw new BadRequestException(
+					'Teachers and students can not have same user',
+				);
+			}
 		}
+
 		return this.classesService.create(createClassDto).catch((err) => {
 			throw new BadRequestException(err.message || 'Something went wrong');
 		});
@@ -114,6 +165,92 @@ export class ClassesController {
 		}
 		body.query = { ...query };
 		return this.classesService.findWithPaginate(body);
+	}
+
+	// @Roles(USER_ROLE.TEACHER)
+	@ApiParam({
+		name: 'id',
+		description: 'Class id',
+	})
+	@ApiQuery({
+		required: false,
+		name: 'file_type',
+		examples: {
+			'Export to csv': {
+				value: 'csv',
+			},
+			'Export to xlsx': {
+				value: 'xlsx',
+			},
+		},
+		description: 'File type for download. Support csv and xlsx',
+	})
+	@Post(':id/download/student-list')
+	async downloadStudentListTemplate(
+		@Param('id') id: string,
+		@Query('file_type') file_type = EXPORT_FILE_TYPE.CSV,
+		@Res({ passthrough: true }) res: Response,
+		@AuthUser() user: User,
+	): Promise<StreamableFile> {
+		if (!EXPORT_FILE_TYPE_ARRAY.includes(file_type)) {
+			throw new BadRequestException(
+				`Invalid file type. Support [${EXPORT_FILE_TYPE_ARRAY.join(', ')}]`,
+			);
+		}
+		if (!isMongoId(id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		const classDetail = await this.findOne(id);
+		if (classDetail.owner.id !== user.id) {
+			throw new BadRequestException('Only owner can download student list');
+		}
+		const data = classDetail.students.map((student) => {
+			return {
+				student_id: student.student_id,
+				full_name: student.full_name,
+			};
+		});
+		const buffer = await this.classesService.createWorkbookStudentList(
+			data,
+			file_type,
+		);
+
+		if (file_type === EXPORT_FILE_TYPE.CSV) {
+			res.type('text/csv');
+		} else if (file_type === EXPORT_FILE_TYPE.XLSX) {
+			res.type(
+				'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			);
+		}
+		res.attachment(`${classDetail.name}_student_list.${file_type}`);
+
+		return new StreamableFile(buffer);
+	}
+
+	@ApiBodyWithSingleFile()
+	@ApiBadRequestResponse({})
+	@Post(':id/import/student-list')
+	async importStudentList(
+		@Param('id') id: string,
+		@UploadedFile(
+			new ParseFilePipe({
+				fileIsRequired: true,
+				validators: [
+					new MaxFileSizeValidator({
+						maxSize: MAX_IMPORT_FILE_SIZE,
+						message: `File too large. Max file size ${
+							MAX_IMPORT_FILE_SIZE / 1000
+						}MB`,
+					}),
+					new FileTypeValidator({
+						fileType: /^(?:(?!~\$).)+\.(?:sheet?|csv)$/g,
+					}),
+				],
+			}),
+		)
+		file: Express.Multer.File,
+	) {
+		return file.filename;
 	}
 
 	@ApiOperation({

@@ -21,6 +21,7 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '@modules/users/users.service';
 import { InvitationSendDto } from './dto/invitation-send.dto';
 import { User } from '@modules/users/entities/user.entity';
+import * as XLSX from 'xlsx';
 
 const transform = (doc, id) => {
 	return {
@@ -86,15 +87,6 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	}
 
 	async create(createClassDto: CreateClassDto) {
-		if (
-			createClassDto.teachers.includes(createClassDto.owner) ||
-			createClassDto.students.includes(createClassDto.owner)
-		) {
-			throw new BadRequestException(
-				"Owner can't be a teacher or student and vice versa",
-			);
-		}
-
 		return await this.classes_repo
 			.create({ ...createClassDto, code: this.uid.randomUUID() })
 			.then((entity: ClassDocument) =>
@@ -306,5 +298,18 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 				enrollUrl: url,
 			},
 		});
+	}
+
+	async createWorkbookStudentList(data: any, file_type: XLSX.BookType) {
+		const workbook = XLSX.utils.book_new();
+		const worksheet = XLSX.utils.json_to_sheet(
+			[{ student_id: 'Student ID', full_name: 'Full name' }, ...data],
+			{
+				header: ['student_id', 'full_name'],
+				skipHeader: true,
+			},
+		);
+		XLSX.utils.book_append_sheet(workbook, worksheet, 'Student List');
+		return XLSX.write(workbook, { type: 'buffer', bookType: file_type });
 	}
 }
