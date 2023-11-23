@@ -12,6 +12,10 @@ import {
 	Query,
 	Res,
 	StreamableFile,
+	UploadedFile,
+	ParseFilePipe,
+	MaxFileSizeValidator,
+	FileTypeValidator,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
@@ -40,6 +44,7 @@ import { NeedAuth } from 'src/decorators/need_auth.decorator';
 import { InvitationSendDto } from './dto/invitation-send.dto';
 import { isMongoId } from 'class-validator';
 import type { Response } from 'express';
+import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
 
 export enum EXPORT_FILE_TYPE {
 	CSV = 'csv',
@@ -47,6 +52,8 @@ export enum EXPORT_FILE_TYPE {
 }
 
 export const EXPORT_FILE_TYPE_ARRAY = Object.values(EXPORT_FILE_TYPE);
+
+export const MAX_IMPORT_FILE_SIZE = 1000 * 1000; // 1MB
 
 @NeedAuth()
 @ApiTags('classes')
@@ -186,6 +193,32 @@ export class ClassesController {
 		res.attachment(`${classDetail.name}_student_list.${file_type}`);
 
 		return new StreamableFile(buffer);
+	}
+
+	@ApiBodyWithSingleFile()
+	@ApiBadRequestResponse({})
+	@Post(':id/import/student-list')
+	async importStudentList(
+		@Param('id') id: string,
+		@UploadedFile(
+			new ParseFilePipe({
+				fileIsRequired: true,
+				validators: [
+					new MaxFileSizeValidator({
+						maxSize: MAX_IMPORT_FILE_SIZE,
+						message: `File too large. Max file size ${
+							MAX_IMPORT_FILE_SIZE / 1000
+						}MB`,
+					}),
+					new FileTypeValidator({
+						fileType: /^(?:(?!~\$).)+\.(?:sheet?|csv)$/g,
+					}),
+				],
+			}),
+		)
+		file: Express.Multer.File,
+	) {
+		return file.filename;
 	}
 
 	@ApiOperation({
