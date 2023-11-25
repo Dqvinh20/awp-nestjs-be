@@ -81,7 +81,6 @@ export class UsersController {
 		return this.users_service.findAll();
 	}
 
-	@ApiBearerAuth()
 	@ApiOperation({
 		summary: 'Get current logged user info',
 		description: ``,

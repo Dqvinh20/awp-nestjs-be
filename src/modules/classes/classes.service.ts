@@ -150,7 +150,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 					'Invitation token expired. Please send again',
 				);
 			}
-			throw new BadRequestException('Bad invitation token token');
+			throw new BadRequestException('Bad invitation token');
 		}
 	}
 
@@ -187,6 +187,9 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			.includes(authUser.email);
 		if (isAlreadyTeacher || isAlreadyStudent)
 			throw new BadRequestException('User already in class');
+
+		const isOwner = classDetail.owner.email === authUser.email;
+		if (isOwner) throw new BadRequestException('Owner can not join class');
 	}
 
 	async joinByCode(classCode: string, authUser: User) {
@@ -194,7 +197,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			throw new BadRequestException('Invalid code length');
 
 		const classDetail: Class = await this.findOneByCondition({
-			classCode,
+			code: classCode,
 			owner: { $ne: authUser.id },
 		});
 

@@ -316,7 +316,7 @@ export class ClassesController {
 					'Bad invitation token token': {
 						value: {
 							statusCode: 400,
-							message: 'Bad invitation token token',
+							message: 'Bad invitation token',
 							error: 'Bad Request',
 						},
 					},
@@ -332,10 +332,12 @@ export class ClassesController {
 	) {
 		if (!code && !token)
 			throw new BadRequestException('Must provide code or token');
-		if (code)
+		if (code) {
 			return await this.classesService
 				.joinByCode(code, user)
 				.then(() => 'User joined class successfully');
+		}
+
 		if (token)
 			return await this.classesService
 				.joinByToken(token, user)
