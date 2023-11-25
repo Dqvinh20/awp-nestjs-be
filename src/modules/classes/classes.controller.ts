@@ -333,15 +333,19 @@ export class ClassesController {
 		if (!code && !token)
 			throw new BadRequestException('Must provide code or token');
 		if (code) {
-			return await this.classesService
-				.joinByCode(code, user)
-				.then(() => 'User joined class successfully');
+			return await this.classesService.joinByCode(code, user).then(() =>
+				this.classesService.findOneByCondition({
+					code,
+				}),
+			);
 		}
 
 		if (token)
-			return await this.classesService
-				.joinByToken(token, user)
-				.then(() => 'User joined class successfully');
+			return await this.classesService.joinByToken(token, user).then(() =>
+				this.classesService.findOneByCondition({
+					code,
+				}),
+			);
 	}
 
 	@ApiOperation({
