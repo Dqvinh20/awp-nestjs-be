@@ -187,9 +187,6 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			.includes(authUser.email);
 		if (isAlreadyTeacher || isAlreadyStudent)
 			throw new BadRequestException('User already in class');
-
-		const isOwner = classDetail.owner.email === authUser.email;
-		if (isOwner) throw new BadRequestException('Owner can not join class');
 	}
 
 	async joinByCode(classCode: string, authUser: User) {
@@ -198,8 +195,11 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 
 		const classDetail: Class = await this.findOneByCondition({
 			code: classCode,
-			owner: { $ne: authUser.id },
 		});
+
+		if (classDetail.owner.id === authUser.id) {
+			throw new BadRequestException('Owner can not join class');
+		}
 
 		this.checkBeforeJoin(classDetail, authUser);
 
@@ -222,8 +222,11 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 
 		const classDetail: Class = await this.findOneByCondition({
 			code: class_code,
-			owner: { $ne: authUser.id },
 		});
+
+		if (classDetail.owner.id === authUser.id) {
+			throw new BadRequestException('Owner can not join class');
+		}
 
 		this.checkBeforeJoin(classDetail, authUser);
 
