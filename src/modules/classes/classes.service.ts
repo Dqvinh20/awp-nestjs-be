@@ -22,6 +22,7 @@ import { UsersService } from '@modules/users/users.service';
 import { InvitationSendDto } from './dto/invitation-send.dto';
 import { User } from '@modules/users/entities/user.entity';
 import * as XLSX from 'xlsx';
+import { KickUserDto } from './dto/kich-user.dto';
 
 const transform = (doc, id) => {
 	return {
@@ -237,6 +238,15 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		).catch((err) => {
 			throw new BadRequestException(err.message || 'Something went wrong');
 		});
+	}
+
+	async kickUser(kichUserDto: KickUserDto, authUser: any) {
+		// const { class_id, user_id } = kichUserDto;
+		// if (!kichUserDto.user_id.includes(authUser.id))
+		// 	throw new BadRequestException('You can not kick yourself');
+
+		// const classDetail = await this.findOne(class_id);
+		throw new BadRequestException('Not implemented yet');
 	}
 
 	async sendInvitationLink(
