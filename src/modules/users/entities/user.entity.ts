@@ -70,7 +70,7 @@ export class User extends BaseEntity {
 
 	@Exclude()
 	@Prop({
-		required: true,
+		required: false,
 	})
 	password: string;
 

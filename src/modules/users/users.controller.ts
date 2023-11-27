@@ -206,6 +206,7 @@ export class UsersController {
 		summary: 'User reset password',
 		description: `User reset password with token sent to email`,
 	})
+	@Public()
 	@Patch('reset-password/:token')
 	async resetPassword(
 		@Param('token') token: string,

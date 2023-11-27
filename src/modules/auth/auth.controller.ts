@@ -1,9 +1,12 @@
+import { ConfigService } from '@nestjs/config';
 import {
 	Body,
 	Controller,
+	Get,
 	HttpCode,
 	Post,
 	Req,
+	Res,
 	UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -24,6 +27,10 @@ import {
 import { EmailConfirmationService } from '@modules/emailConfirmation/emailConfirmation.service';
 import { JwtAccessTokenGuard } from './guards/jwt-access-token.guard';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
+import { GoogleOauthGuard } from './guards/google-oauth.guard';
+import { Request, Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
+import { FacebookOauthGuard } from './guards/facebook-oauth.guard';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -32,6 +39,7 @@ export class AuthController {
 	constructor(
 		private readonly auth_service: AuthService,
 		private readonly emailConfirmationService: EmailConfirmationService,
+		private readonly configService: ConfigService,
 	) {}
 
 	@Post('sign-up')
@@ -180,6 +188,81 @@ export class AuthController {
 		);
 		request.res.setHeader('Set-Cookie', refreshTokenCookie);
 		return data;
+	}
+
+	@Get('facebook/:from')
+	@UseGuards(FacebookOauthGuard)
+	async facebookLogin() {
+		/* Empty */
+	}
+
+	@Get('facebook-redirect')
+	@UseGuards(FacebookOauthGuard)
+	async facebookLoginRedirect(
+		@Req() req: Request,
+		@Res() res: Response,
+	): Promise<any> {
+		console.log(req);
+		try {
+			console.log(req.user);
+			const auth = (await this.auth_service.socialLogin(req.user)) as any;
+			console.log(auth);
+
+			// Set refresh token to cookie
+			const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
+				auth.refresh_token,
+			);
+			res.setHeader('Set-Cookie', refreshTokenCookie);
+
+			return res.redirect(
+				`${this.configService.get<string>(
+					'BASE_FE_URL',
+				)}/facebook-oauth-success-redirect/${auth.access_token}${
+					req.params.from
+				}`,
+			);
+		} catch (error) {
+			console.log(error);
+			return res.redirect(
+				`${this.configService.get<string>('BASE_FE_URL')}/sign-in?error=${
+					error.message
+				}`,
+			);
+		}
+	}
+
+	@Get('google/:from')
+	@UseGuards(GoogleOauthGuard)
+	async googleAuth() {
+		/* Empty */
+	}
+
+	@Get('google-redirect')
+	@UseGuards(GoogleOauthGuard)
+	async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+		try {
+			const auth = (await this.auth_service.socialLogin(req.user)) as any;
+
+			// Set refresh token to cookie
+			const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
+				auth.refresh_token,
+			);
+			res.setHeader('Set-Cookie', refreshTokenCookie);
+
+			res.redirect(
+				`${this.configService.get<string>(
+					'BASE_FE_URL',
+				)}/google-oauth-success-redirect/${auth.access_token}${
+					req.params.from
+				}`,
+			);
+		} catch (error) {
+			return res.redirect(
+				`${this.configService.get<string>('BASE_FE_URL')}/sign-in?error=${
+					error.message
+				}`,
+			);
+		}
 	}
 
 	@UseGuards(JwtRefreshTokenGuard)
