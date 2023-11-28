@@ -10,7 +10,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
 			clientID: process.env.FACEBOOK_AUTH_CLIENT_ID,
 			clientSecret: process.env.FACEBOOK_AUTH_CLIENT_SECRET,
 			callbackURL: `${
-				process.env.NODE_ENV
+				process.env.NODE_ENV === 'development'
 					? 'http://localhost:3000'
 					: 'https://awp-project.hausuper-s.me'
 			}/api/auth/facebook-redirect`,

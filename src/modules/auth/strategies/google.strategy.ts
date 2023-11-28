@@ -10,7 +10,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 			clientID: process.env.GOOGLE_AUTH_CLIENT_ID,
 			clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET,
 			callbackURL: `${
-				process.env.NODE_ENV
+				process.env.NODE_ENV === 'development'
 					? 'http://localhost:3000'
 					: 'https://awp-project.hausuper-s.me'
 			}/api/auth/google-redirect`,
