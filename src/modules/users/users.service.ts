@@ -216,4 +216,8 @@ export class UsersService extends BaseServiceAbstract<User> {
 			isActive: true,
 		});
 	}
+
+	permanentlyDelete(id: string) {
+		return this.users_repository.permanentlyDelete(id);
+	}
 }

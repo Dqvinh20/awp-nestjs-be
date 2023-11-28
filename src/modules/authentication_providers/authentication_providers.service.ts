@@ -11,4 +11,8 @@ export class AuthenticationProvidersService extends BaseServiceAbstract<Authenti
 	) {
 		super(auth_provider_repository);
 	}
+
+	permanentlyDelete(id: string) {
+		return this.auth_provider_repository.permanentlyDelete(id);
+	}
 }

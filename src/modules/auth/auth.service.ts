@@ -1,4 +1,4 @@
-import { populate } from './../classes/classes.service';
+import { isEmail } from 'class-validator';
 import { User } from '@modules/users/entities/user.entity';
 import { UsersService } from '@modules/users/users.service';
 import {
@@ -27,12 +27,16 @@ import {
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 import { AuthenticationProvidersService } from '@modules/authentication_providers/authentication_providers.service';
 import { AuthenticationProviderDocument } from '@modules/authentication_providers/entity/authentication_provider.entity';
+import { FinishSignUpDto } from './dto/finish-sign-up.dto';
+import { UserRolesService } from '@modules/user-roles/user-roles.service';
+import { CreateUserDto } from '@modules/users/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
 	constructor(
 		private config_service: ConfigService,
 		private readonly users_service: UsersService,
+		private readonly user_roles_service: UserRolesService,
 		private readonly jwt_service: JwtService,
 		private readonly authen_provider_service: AuthenticationProvidersService,
 	) {}
@@ -204,48 +208,35 @@ export class AuthService {
 
 	async socialLogin(user) {
 		if (!user) {
-			throw new NotFoundException("Google user doesn't exist!!");
+			throw new NotFoundException('Social login failed!!');
 		}
 
-		const authProvider = await this.authen_provider_service
+		await this.authen_provider_service
 			.findOneByCondition({
-				provider_user_id: user.id,
+				provider_user_id: user.provider_user_id,
 				provider_type: user.provider_type,
 			})
 			.then((entity: AuthenticationProviderDocument) => {
 				if (!entity) {
-					throw new NotFoundException('User not found!!');
+					throw new NotFoundException('Login provider not found!!');
 				}
-				return entity.populate('user_id');
+				return entity.populate('user');
 			});
 
 		const dbUser = await this.users_service.findOneByCondition({
 			email: user.email,
 		});
+
 		if (!dbUser) {
 			throw new NotFoundException('User not found!!');
 		}
 
-		const user_id = authProvider.user.id;
-
-		try {
-			const access_token = this.generateAccessToken({
-				user_id,
-			});
-			const refresh_token = this.generateRefreshToken({
-				user_id,
-			});
-			await this.storeRefreshToken(user_id, refresh_token);
-			return {
-				access_token,
-				refresh_token,
-			};
-		} catch (error) {
-			throw error;
-		}
+		return this.signIn(dbUser._id.toString());
 	}
 
 	async socialSignUp(user) {
+		let savedUser;
+		let savedAuthenProvider;
 		try {
 			const existed_user = await this.users_service.findOneByCondition({
 				email: user.email,
@@ -254,39 +245,68 @@ export class AuthService {
 				return this.signIn(existed_user._id.toString());
 			}
 
-			const newUser = await this.users_service.create({
+			savedUser = await this.users_service.create({
 				email: user.email,
 				first_name: user.firstName,
 				last_name: user.lastName,
-
-				// provider_user_id: profile.id,
-				// provider_type: profile.provider as PROVIDER_TYPE,
-				// email: emails[0].value,
-				// firstName: name.givenName,
-				// lastName: name.familyName,
-				// picture: photos[0].value,
-				// access_token: accessToken,
-				// refresh_token: refreshToken,
+				avatar: user.picture,
+				isEmailConfirmed: true,
 			} as any);
 
-			await this.authen_provider_service.create({
-				provider_user_id: user.id,
+			await this.users_service.update(savedUser.id, {
+				role: null,
+			});
+
+			savedAuthenProvider = await this.authen_provider_service.create({
+				provider_user_id: user.provider_user_id,
 				provider_type: user.provider_type,
-				user: newUser.id,
+				user: savedUser.id,
 			});
 
 			const refresh_token = this.generateRefreshToken({
-				user_id: newUser._id.toString(),
+				user_id: savedUser._id.toString(),
 			});
-			await this.storeRefreshToken(newUser._id.toString(), refresh_token);
+
+			await this.storeRefreshToken(savedUser._id.toString(), refresh_token);
 			return {
 				access_token: this.generateAccessToken({
-					user_id: newUser._id.toString(),
+					user_id: savedUser._id.toString(),
 				}),
 				refresh_token,
 			};
 		} catch (error) {
+			if (savedUser) {
+				await this.users_service.permanentlyDelete(user._id.toString());
+			}
+			if (savedAuthenProvider) {
+				await this.authen_provider_service.permanentlyDelete(
+					user._id.toString(),
+				);
+			}
 			throw error;
 		}
+	}
+
+	async finishSignUp(id: string, finishSignUpDto: FinishSignUpDto) {
+		if (finishSignUpDto.role === USER_ROLE.STUDENT) {
+			if (!finishSignUpDto.student_id) {
+				throw new BadRequestException('Student ID is required!!');
+			}
+		}
+
+		const user_role = await this.user_roles_service.findOneByCondition({
+			name: finishSignUpDto.role,
+		});
+
+		if (!user_role) {
+			throw new BadRequestException('Role is not valid');
+		}
+
+		const user = await this.users_service.update(id, {
+			...finishSignUpDto,
+			role: user_role,
+		});
+
+		return user;
 	}
 }

@@ -15,7 +15,13 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
 					: 'https://awp-project.hausuper-s.me'
 			}/api/auth/facebook-redirect`,
 			scope: 'email',
-			profileFields: ['id', 'name', 'displayName', 'photos', 'email'],
+			profileFields: [
+				'id',
+				'name',
+				'displayName',
+				'emails',
+				'picture.type(large)',
+			],
 		});
 	}
 
@@ -32,15 +38,15 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
 		refreshToken: string,
 		profile: Profile,
 	): Promise<any> {
-		const { name, emails, photos } = profile;
-
+		const { name, emails } = profile;
+		const picture = `http://graph.facebook.com/${profile.id}/picture?type=large&redirect=true&width=500&height=500`;
 		const user = {
 			provider_user_id: profile.id,
 			provider_type: profile.provider as PROVIDER_TYPE,
 			email: emails[0].value,
 			firstName: name.givenName,
 			lastName: name.familyName,
-			picture: photos[0].value,
+			picture: picture,
 			access_token: accessToken,
 			refresh_token: refreshToken,
 		};

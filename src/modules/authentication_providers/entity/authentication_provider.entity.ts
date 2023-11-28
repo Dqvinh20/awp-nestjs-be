@@ -53,3 +53,8 @@ export class AuthenticationProvider extends BaseEntity {
 export const AuthenticationProviderSchema = SchemaFactory.createForClass(
 	AuthenticationProvider,
 );
+
+AuthenticationProviderSchema.index(
+	{ provider_type: 1, provider_user_id: 1, user: 1 },
+	{ unique: true },
+);

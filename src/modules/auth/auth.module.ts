@@ -12,10 +12,12 @@ import { EmailConfirmationService } from '@modules/emailConfirmation/emailConfir
 import { GoogleStrategy } from './strategies/google.strategy';
 import { ConfigModule } from '@nestjs/config';
 import { FacebookStrategy } from './strategies/facebook.strategy';
+import { UserRolesModule } from '@modules/user-roles/user-roles.module';
 
 @Module({
 	imports: [
 		UsersModule,
+		UserRolesModule,
 		ConfigModule,
 		AuthenticationProvidersModule,
 		PassportModule,
