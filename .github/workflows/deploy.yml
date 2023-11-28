@@ -1,6 +1,10 @@
 name: Deploy to Server
 
 on:
+  push:
+    branches:
+      - develop
+      
   workflow_dispatch: 
 
 env:
