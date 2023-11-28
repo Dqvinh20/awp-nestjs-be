@@ -209,7 +209,7 @@ export class AuthController {
 				'BASE_FE_URL',
 			)}/${provider_type}-oauth-success-redirect/${auth.access_token}${
 				req.params.from
-			}`;
+			}?return_url=${req.query.return_url}`;
 
 		try {
 			if (req.params.from.includes('sign-in')) {

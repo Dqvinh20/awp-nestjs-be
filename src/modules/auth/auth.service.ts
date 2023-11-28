@@ -218,7 +218,7 @@ export class AuthService {
 			})
 			.then((entity: AuthenticationProviderDocument) => {
 				if (!entity) {
-					throw new NotFoundException('Login provider not found!!');
+					throw new NotFoundException('User are not registered yet!!');
 				}
 				return entity.populate('user');
 			});
@@ -228,7 +228,7 @@ export class AuthService {
 		});
 
 		if (!dbUser) {
-			throw new NotFoundException('User not found!!');
+			throw new NotFoundException('User are not registered yet!!');
 		}
 
 		return this.signIn(dbUser._id.toString());

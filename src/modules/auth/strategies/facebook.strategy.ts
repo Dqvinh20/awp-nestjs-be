@@ -1,6 +1,7 @@
 import { PROVIDER_TYPE } from '@modules/authentication_providers/entity/authentication_provider.entity';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+import base64url from 'base64url';
 import { Profile, Strategy } from 'passport-facebook';
 
 @Injectable()
@@ -27,7 +28,15 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
 
 	authenticate(req: any, options: any) {
 		if (!options?.state) {
-			options = { ...options, state: req.params.from };
+			options = {
+				...options,
+				state: base64url(
+					JSON.stringify({
+						from: req.params.from,
+						return_url: req.query.return_url,
+					}),
+				),
+			};
 		}
 
 		return super.authenticate(req, options);

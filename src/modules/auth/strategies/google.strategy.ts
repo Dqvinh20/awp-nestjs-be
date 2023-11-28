@@ -2,6 +2,7 @@ import { PROVIDER_TYPE } from './../../authentication_providers/entity/authentic
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-google-oauth20';
 import { Injectable } from '@nestjs/common';
+import base64url from 'base64url';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
@@ -20,7 +21,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
 	authenticate(req: any, options: any) {
 		if (!options?.state) {
-			options = { ...options, state: req.params.from };
+			options = {
+				...options,
+				state: base64url(
+					JSON.stringify({
+						from: req.params.from,
+						return_url: req.query.return_url,
+					}),
+				),
+			};
 		}
 
 		return super.authenticate(req, options);
