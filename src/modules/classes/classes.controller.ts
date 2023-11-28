@@ -45,6 +45,7 @@ import type { Response } from 'express';
 import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
 import { intersection } from 'lodash';
 import { Role } from 'src/decorators/role.decorator';
+import { KickUserDto } from './dto/kich-user.dto';
 
 export enum EXPORT_FILE_TYPE {
 	CSV = 'csv',
@@ -200,7 +201,7 @@ export class ClassesController {
 		if (!isMongoId(id)) {
 			throw new BadRequestException('Invalid class id');
 		}
-		const classDetail = await this.findOne(id);
+		const classDetail = await this.classesService.findOne(id);
 		if (classDetail.owner.id !== user.id) {
 			throw new BadRequestException('Only owner can download student list');
 		}
@@ -316,7 +317,7 @@ export class ClassesController {
 					'Bad invitation token token': {
 						value: {
 							statusCode: 400,
-							message: 'Bad invitation token token',
+							message: 'Bad invitation token',
 							error: 'Bad Request',
 						},
 					},
@@ -332,14 +333,19 @@ export class ClassesController {
 	) {
 		if (!code && !token)
 			throw new BadRequestException('Must provide code or token');
-		if (code)
-			return await this.classesService
-				.joinByCode(code, user)
-				.then(() => 'User joined class successfully');
-		if (token)
-			return await this.classesService
-				.joinByToken(token, user)
-				.then(() => 'User joined class successfully');
+
+		if (code) {
+			return await this.classesService.joinByCode(code, user);
+		}
+
+		if (token) {
+			return await this.classesService.joinByToken(token, user);
+		}
+	}
+
+	@Post('kick')
+	async kick(@AuthUser() user, @Body() kickUserDto: KickUserDto) {
+		return this.classesService.kickUser(kickUserDto, user);
 	}
 
 	@ApiOperation({
@@ -472,8 +478,21 @@ export class ClassesController {
 		},
 	})
 	@Get(':id')
-	findOne(@Param('id') id: string) {
-		return this.classesService.findOne(id);
+	async findOne(@Param('id') id: string, @AuthUser() user: User) {
+		const classDetail = await this.classesService.findOne(id);
+		if (user.email !== classDetail.owner.email) {
+			const { teachers, students } = classDetail;
+			if (teachers.map((teacher) => teacher.email).includes(user.email))
+				return classDetail;
+
+			if (students.map((student) => student.email).includes(user.email))
+				return classDetail;
+
+			throw new BadRequestException(
+				"You don't have permission to access. You are not in this class",
+			);
+		}
+		return classDetail;
 	}
 
 	@ApiOperation({

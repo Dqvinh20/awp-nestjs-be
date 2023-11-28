@@ -24,7 +24,6 @@ export class ClassesRepository
 			[member_role === USER_ROLE.TEACHER ? 'teachers' : 'students']:
 				new Types.ObjectId(member_id),
 		};
-		console.log(updateQuery);
 
 		return await this.class_model.findOneAndUpdate(
 			{

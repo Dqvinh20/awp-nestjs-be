@@ -22,6 +22,7 @@ import { UsersService } from '@modules/users/users.service';
 import { InvitationSendDto } from './dto/invitation-send.dto';
 import { User } from '@modules/users/entities/user.entity';
 import * as XLSX from 'xlsx';
+import { KickUserDto } from './dto/kich-user.dto';
 
 const transform = (doc, id) => {
 	return {
@@ -150,7 +151,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 					'Invitation token expired. Please send again',
 				);
 			}
-			throw new BadRequestException('Bad invitation token token');
+			throw new BadRequestException('Bad invitation token');
 		}
 	}
 
@@ -194,9 +195,12 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			throw new BadRequestException('Invalid code length');
 
 		const classDetail: Class = await this.findOneByCondition({
-			classCode,
-			owner: { $ne: authUser.id },
+			code: classCode,
 		});
+
+		if (classDetail.owner.id === authUser.id) {
+			throw new BadRequestException('Owner can not join class');
+		}
 
 		this.checkBeforeJoin(classDetail, authUser);
 
@@ -219,8 +223,11 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 
 		const classDetail: Class = await this.findOneByCondition({
 			code: class_code,
-			owner: { $ne: authUser.id },
 		});
+
+		if (classDetail.owner.id === authUser.id) {
+			throw new BadRequestException('Owner can not join class');
+		}
 
 		this.checkBeforeJoin(classDetail, authUser);
 
@@ -231,6 +238,15 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		).catch((err) => {
 			throw new BadRequestException(err.message || 'Something went wrong');
 		});
+	}
+
+	async kickUser(kichUserDto: KickUserDto, authUser: any) {
+		// const { class_id, user_id } = kichUserDto;
+		// if (!kichUserDto.user_id.includes(authUser.id))
+		// 	throw new BadRequestException('You can not kick yourself');
+
+		// const classDetail = await this.findOne(class_id);
+		throw new BadRequestException('Not implemented yet');
 	}
 
 	async sendInvitationLink(

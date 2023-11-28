@@ -1,9 +1,11 @@
+import { isEmail } from 'class-validator';
 import { User } from '@modules/users/entities/user.entity';
 import { UsersService } from '@modules/users/users.service';
 import {
 	BadRequestException,
 	ConflictException,
 	Injectable,
+	NotFoundException,
 	UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -23,13 +25,20 @@ import {
 	hashPassword,
 } from '@modules/shared/helper/password.helper';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
+import { AuthenticationProvidersService } from '@modules/authentication_providers/authentication_providers.service';
+import { AuthenticationProviderDocument } from '@modules/authentication_providers/entity/authentication_provider.entity';
+import { FinishSignUpDto } from './dto/finish-sign-up.dto';
+import { UserRolesService } from '@modules/user-roles/user-roles.service';
+import { CreateUserDto } from '@modules/users/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
 	constructor(
 		private config_service: ConfigService,
 		private readonly users_service: UsersService,
+		private readonly user_roles_service: UserRolesService,
 		private readonly jwt_service: JwtService,
+		private readonly authen_provider_service: AuthenticationProvidersService,
 	) {}
 
 	async checkBeforeSignUp(sign_up_dto: SignUpDto) {
@@ -195,5 +204,109 @@ export class AuthService {
 
 	getCookiesForLogOut() {
 		return ['Refresh=; HttpOnly; Path=/; Max-Age=0'];
+	}
+
+	async socialLogin(user) {
+		if (!user) {
+			throw new NotFoundException('Social login failed!!');
+		}
+
+		await this.authen_provider_service
+			.findOneByCondition({
+				provider_user_id: user.provider_user_id,
+				provider_type: user.provider_type,
+			})
+			.then((entity: AuthenticationProviderDocument) => {
+				if (!entity) {
+					throw new NotFoundException('Login provider not found!!');
+				}
+				return entity.populate('user');
+			});
+
+		const dbUser = await this.users_service.findOneByCondition({
+			email: user.email,
+		});
+
+		if (!dbUser) {
+			throw new NotFoundException('User not found!!');
+		}
+
+		return this.signIn(dbUser._id.toString());
+	}
+
+	async socialSignUp(user) {
+		let savedUser;
+		let savedAuthenProvider;
+		try {
+			const existed_user = await this.users_service.findOneByCondition({
+				email: user.email,
+			});
+			if (existed_user) {
+				return this.signIn(existed_user._id.toString());
+			}
+
+			savedUser = await this.users_service.create({
+				email: user.email,
+				first_name: user.firstName,
+				last_name: user.lastName,
+				avatar: user.picture,
+				isEmailConfirmed: true,
+			} as any);
+
+			await this.users_service.update(savedUser.id, {
+				role: null,
+			});
+
+			savedAuthenProvider = await this.authen_provider_service.create({
+				provider_user_id: user.provider_user_id,
+				provider_type: user.provider_type,
+				user: savedUser.id,
+			});
+
+			const refresh_token = this.generateRefreshToken({
+				user_id: savedUser._id.toString(),
+			});
+
+			await this.storeRefreshToken(savedUser._id.toString(), refresh_token);
+			return {
+				access_token: this.generateAccessToken({
+					user_id: savedUser._id.toString(),
+				}),
+				refresh_token,
+			};
+		} catch (error) {
+			if (savedUser) {
+				await this.users_service.permanentlyDelete(user._id.toString());
+			}
+			if (savedAuthenProvider) {
+				await this.authen_provider_service.permanentlyDelete(
+					user._id.toString(),
+				);
+			}
+			throw error;
+		}
+	}
+
+	async finishSignUp(id: string, finishSignUpDto: FinishSignUpDto) {
+		if (finishSignUpDto.role === USER_ROLE.STUDENT) {
+			if (!finishSignUpDto.student_id) {
+				throw new BadRequestException('Student ID is required!!');
+			}
+		}
+
+		const user_role = await this.user_roles_service.findOneByCondition({
+			name: finishSignUpDto.role,
+		});
+
+		if (!user_role) {
+			throw new BadRequestException('Role is not valid');
+		}
+
+		const user = await this.users_service.update(id, {
+			...finishSignUpDto,
+			role: user_role,
+		});
+
+		return user;
 	}
 }

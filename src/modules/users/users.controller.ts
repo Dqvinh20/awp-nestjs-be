@@ -81,7 +81,6 @@ export class UsersController {
 		return this.users_service.findAll();
 	}
 
-	@ApiBearerAuth()
 	@ApiOperation({
 		summary: 'Get current logged user info',
 		description: ``,
@@ -207,6 +206,7 @@ export class UsersController {
 		summary: 'User reset password',
 		description: `User reset password with token sent to email`,
 	})
+	@Public()
 	@Patch('reset-password/:token')
 	async resetPassword(
 		@Param('token') token: string,

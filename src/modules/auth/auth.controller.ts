@@ -1,9 +1,15 @@
+import { PROVIDER_TYPE } from './../authentication_providers/entity/authentication_provider.entity';
+import { ConfigService } from '@nestjs/config';
 import {
+	BadRequestException,
 	Body,
 	Controller,
+	Get,
 	HttpCode,
+	Logger,
 	Post,
 	Req,
+	Res,
 	UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -24,14 +30,22 @@ import {
 import { EmailConfirmationService } from '@modules/emailConfirmation/emailConfirmation.service';
 import { JwtAccessTokenGuard } from './guards/jwt-access-token.guard';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
+import { GoogleOauthGuard } from './guards/google-oauth.guard';
+import { Request, Response } from 'express';
+import { FacebookOauthGuard } from './guards/facebook-oauth.guard';
+import { AuthUser } from 'src/decorators/auth_user.decorator';
+import { FinishSignUpDto } from './dto/finish-sign-up.dto';
+import { User } from '@modules/users/entities/user.entity';
 
 @Controller('auth')
 @ApiTags('auth')
 @ApiBearerAuth()
 export class AuthController {
+	private readonly logger = new Logger(AuthController.name);
 	constructor(
 		private readonly auth_service: AuthService,
 		private readonly emailConfirmationService: EmailConfirmationService,
+		private readonly configService: ConfigService,
 	) {}
 
 	@Post('sign-up')
@@ -179,7 +193,91 @@ export class AuthController {
 			data.refresh_token,
 		);
 		request.res.setHeader('Set-Cookie', refreshTokenCookie);
+
+		this.logger.debug('User - ' + request.user.email + ' sign in');
+
 		return data;
+	}
+
+	async socialLogin(
+		req: Request,
+		res: Response,
+		provider_type = PROVIDER_TYPE.GOOGLE,
+	) {
+		const successRedirectUrl = (auth) =>
+			`${this.configService.get<string>(
+				'BASE_FE_URL',
+			)}/${provider_type}-oauth-success-redirect/${auth.access_token}${
+				req.params.from
+			}`;
+
+		try {
+			if (req.params.from.includes('sign-in')) {
+				const auth = (await this.auth_service.socialLogin(req.user)) as any;
+
+				// Set refresh token to cookie
+				const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
+					auth.refresh_token,
+				);
+				res.setHeader('Set-Cookie', refreshTokenCookie);
+
+				return res.redirect(successRedirectUrl(auth));
+			} else if (req.params.from.includes('sign-up')) {
+				const auth = (await this.auth_service.socialSignUp(req.user)) as any;
+				return res.redirect(successRedirectUrl(auth));
+			} else {
+				return new BadRequestException('Invalid request');
+			}
+		} catch (error) {
+			return res.redirect(
+				`${this.configService.get<string>('BASE_FE_URL')}/sign-in?error=${
+					error.message
+				}`,
+			);
+		}
+	}
+
+	@Get('facebook/:from')
+	@UseGuards(FacebookOauthGuard)
+	async facebookLogin() {
+		/* Empty */
+	}
+
+	@Get('facebook-redirect')
+	@UseGuards(FacebookOauthGuard)
+	async facebookLoginRedirect(
+		@Req() req: Request,
+		@Res() res: Response,
+	): Promise<any> {
+		this.logger.debug(
+			'User - ' + (req.user as any).email + ' sign in with facebook',
+		);
+		return this.socialLogin(req, res, PROVIDER_TYPE.FACEBOOK);
+	}
+
+	@Get('google/:from')
+	@UseGuards(GoogleOauthGuard)
+	async googleAuth() {
+		/* Empty */
+	}
+
+	@Get('google-redirect')
+	@UseGuards(GoogleOauthGuard)
+	async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+		this.logger.debug(
+			'User - ' + (req.user as any).email + ' sign in with google',
+		);
+		return this.socialLogin(req, res, PROVIDER_TYPE.GOOGLE);
+	}
+
+	@Post('finish-sign-up')
+	@UseGuards(JwtAccessTokenGuard)
+	async finishSignUp(@AuthUser() user: User, @Body() body: FinishSignUpDto) {
+		if (user.role) {
+			throw new BadRequestException('Already finished sign up!!. Not allowed');
+		}
+
+		return await this.auth_service.finishSignUp(user.id, body);
 	}
 
 	@UseGuards(JwtRefreshTokenGuard)
@@ -198,6 +296,7 @@ export class AuthController {
 	@Post('log-out')
 	@HttpCode(200)
 	async logOut(@Req() request: RequestWithUser) {
+		this.logger.debug('User - ' + request.user.email + ' log out');
 		await this.auth_service.removeRefreshToken(request.user.id);
 		request.res.setHeader(
 			'Set-Cookie',
