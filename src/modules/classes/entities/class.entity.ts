@@ -50,7 +50,12 @@ export class Class extends BaseEntity {
 
 	@Prop({
 		type: [
-			{ type: mongoose.Schema.Types.ObjectId, ref: User.name, unique: true },
+			{
+				required: false,
+				type: mongoose.Schema.Types.ObjectId,
+				ref: User.name,
+				unique: true,
+			},
 		],
 	})
 	@Type(() => User)
@@ -58,7 +63,12 @@ export class Class extends BaseEntity {
 
 	@Prop({
 		type: [
-			{ type: mongoose.Schema.Types.ObjectId, ref: User.name, unique: true },
+			{
+				required: false,
+				type: mongoose.Schema.Types.ObjectId,
+				ref: User.name,
+				unique: true,
+			},
 		],
 	})
 	@Type(() => User)
