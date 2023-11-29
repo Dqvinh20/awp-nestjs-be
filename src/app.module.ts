@@ -12,9 +12,33 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { EmailConfirmationModule } from '@modules/emailConfirmation/emailConfirmation.module';
 import { ClassesModule } from '@modules/classes/classes.module';
+import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
 	imports: [
+		ThrottlerModule.forRootAsync({
+			useFactory: () => {
+				if (process.env.NODE_ENV !== 'production') return [];
+				return [
+					{
+						name: 'short',
+						ttl: seconds(1),
+						limit: 3,
+					},
+					{
+						name: 'medium',
+						ttl: seconds(10),
+						limit: 10,
+					},
+					{
+						name: 'long',
+						ttl: seconds(60),
+						limit: 100,
+					},
+				];
+			},
+		}),
 		ConfigModule.forRoot({
 			validationSchema: Joi.object({
 				NODE_ENV: Joi.string()
@@ -94,6 +118,12 @@ import { ClassesModule } from '@modules/classes/classes.module';
 		EmailConfirmationModule,
 	],
 	controllers: [AppController],
-	providers: [AppService],
+	providers: [
+		AppService,
+		{
+			provide: APP_GUARD,
+			useClass: ThrottlerGuard,
+		},
+	],
 })
 export class AppModule {}
