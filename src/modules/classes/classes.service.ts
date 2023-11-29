@@ -12,7 +12,7 @@ import { ClassesRepositoryInterface } from './interfaces/classes.interface';
 import { Class, ClassDocument } from './entities/class.entity';
 import { FindAllResponse } from 'src/types/common.type';
 import ShortUniqueId from 'short-unique-id';
-import { PaginateResult, PopulateOptions } from 'mongoose';
+import { PaginateModel, PaginateResult, PopulateOptions } from 'mongoose';
 import { FindAllPaginateDto } from './dto/find-paginate.dto';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -22,7 +22,8 @@ import { UsersService } from '@modules/users/users.service';
 import { InvitationSendDto } from './dto/invitation-send.dto';
 import { User } from '@modules/users/entities/user.entity';
 import * as XLSX from 'xlsx';
-import { KickUserDto } from './dto/kich-user.dto';
+import { RemoveUserFromClassDto } from './dto/remove-user-from-class.dto';
+import { InjectModel } from '@nestjs/mongoose';
 
 const transform = (doc, id) => {
 	return {
@@ -73,6 +74,8 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		private readonly mailerService: MailerService,
 		private readonly jwtService: JwtService,
 		private readonly configService: ConfigService,
+		@InjectModel(Class.name)
+		private readonly class_model: PaginateModel<ClassDocument>,
 	) {
 		super(classes_repo);
 		this.uid = new ShortUniqueId({ length: 7 });
@@ -240,13 +243,19 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		});
 	}
 
-	async kickUser(kichUserDto: KickUserDto, authUser: any) {
-		// const { class_id, user_id } = kichUserDto;
-		// if (!kichUserDto.user_id.includes(authUser.id))
-		// 	throw new BadRequestException('You can not kick yourself');
+	async removeMember(removeUserFromClassDto: RemoveUserFromClassDto) {
+		const { class_id: id, users_id, role } = removeUserFromClassDto;
 
-		// const classDetail = await this.findOne(class_id);
-		throw new BadRequestException('Not implemented yet');
+		await this.class_model.findOneAndUpdate(
+			{ id },
+			{
+				$pull: {
+					[role === USER_ROLE.STUDENT ? 'students' : 'teachers']: {
+						$in: users_id,
+					},
+				},
+			},
+		);
 	}
 
 	async sendInvitationLink(

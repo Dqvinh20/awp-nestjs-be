@@ -45,7 +45,7 @@ import type { Response } from 'express';
 import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
 import { intersection } from 'lodash';
 import { Role } from 'src/decorators/role.decorator';
-import { KickUserDto } from './dto/kich-user.dto';
+import { RemoveUserFromClassDto } from './dto/remove-user-from-class.dto';
 
 export enum EXPORT_FILE_TYPE {
 	CSV = 'csv',
@@ -343,9 +343,19 @@ export class ClassesController {
 		}
 	}
 
-	@Post('kick')
-	async kick(@AuthUser() user, @Body() kickUserDto: KickUserDto) {
-		return this.classesService.kickUser(kickUserDto, user);
+	@Roles(USER_ROLE.TEACHER, USER_ROLE.ADMIN)
+	@Delete('kick')
+	async kick(
+		@AuthUser() user,
+		@Role() userRole,
+		@Body() kickUserDto: RemoveUserFromClassDto,
+	) {
+		const classDetail = await this.classesService.findOne(kickUserDto.class_id);
+		if (userRole !== USER_ROLE.ADMIN && classDetail.owner.id !== user.id) {
+			throw new BadRequestException('Only owner can kick user');
+		}
+
+		return this.classesService.removeMember(kickUserDto);
 	}
 
 	@ApiOperation({
