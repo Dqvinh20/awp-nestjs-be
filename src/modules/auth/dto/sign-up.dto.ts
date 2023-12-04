@@ -27,9 +27,9 @@ export class SignUpDto {
 	@IsString()
 	student_id?: string;
 
-	@IsNotEmpty()
-	@IsIn([USER_ROLE.STUDENT, USER_ROLE.TEACHER])
-	role!: SignUpRole;
+	// @IsNotEmpty()
+	// @IsIn([USER_ROLE.STUDENT, USER_ROLE.TEACHER])
+	// role!: SignUpRole;
 
 	@IsNotEmpty()
 	@MaxLength(50)
