@@ -1,4 +1,3 @@
-import { isEmail } from 'class-validator';
 import { User } from '@modules/users/entities/user.entity';
 import { UsersService } from '@modules/users/users.service';
 import {
@@ -29,7 +28,6 @@ import { AuthenticationProvidersService } from '@modules/authentication_provider
 import { AuthenticationProviderDocument } from '@modules/authentication_providers/entity/authentication_provider.entity';
 import { FinishSignUpDto } from './dto/finish-sign-up.dto';
 import { UserRolesService } from '@modules/user-roles/user-roles.service';
-import { CreateUserDto } from '@modules/users/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -41,40 +39,14 @@ export class AuthService {
 		private readonly authen_provider_service: AuthenticationProvidersService,
 	) {}
 
-	async checkBeforeSignUp(sign_up_dto: SignUpDto) {
-		const { role, email, student_id } = sign_up_dto;
-		let query: any = { email };
-		switch (role) {
-			case USER_ROLE.STUDENT:
-				{
-					if (!sign_up_dto.student_id) {
-						throw new BadRequestException('Student ID is required!!');
-					}
-					query = {
-						$or: [{ email: email }, { student_id: student_id }],
-					};
-				}
-				break;
-			case USER_ROLE.TEACHER: {
-				if (sign_up_dto.student_id) {
-					throw new BadRequestException(
-						'Student ID is not required for teacher!!',
-					);
-				}
-			}
-			default:
-				break;
-		}
-
-		const existed_user = await this.users_service.findOneByCondition(query);
-		if (existed_user) {
-			throw new ConflictException('Email already existed!!');
-		}
-	}
-
 	async signUp(sign_up_dto: SignUpDto) {
 		try {
-			await this.checkBeforeSignUp(sign_up_dto);
+			const existed_user = await this.users_service.getUserByEmail(
+				sign_up_dto.email,
+			);
+			if (existed_user) {
+				throw new ConflictException('Email already existed!!');
+			}
 
 			const hashed_password = hashPassword(sign_up_dto.password);
 
@@ -82,6 +54,11 @@ export class AuthService {
 				...sign_up_dto,
 				password: hashed_password,
 			});
+
+			await this.users_service.update(user.id, {
+				role: null,
+			});
+
 			const refresh_token = this.generateRefreshToken({
 				user_id: user._id.toString(),
 			});
