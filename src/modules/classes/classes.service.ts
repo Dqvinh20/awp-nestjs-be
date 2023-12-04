@@ -24,6 +24,11 @@ import { User } from '@modules/users/entities/user.entity';
 import * as XLSX from 'xlsx';
 import { RemoveUserFromClassDto } from './dto/remove-user-from-class.dto';
 import { InjectModel } from '@nestjs/mongoose';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ClassCreatedEvent } from '@modules/shared/events/ClassCreatedEvent';
+import { StudentJoinClassEvent } from '@modules/shared/events/StudentJoinClass.event';
+import { UpdateClassGradeDto } from '@modules/class_grades/dto/update-class_grade.dto';
+import { UpdateGrade } from '@modules/class_grades/dto/update-grade.dto';
 
 const transform = (doc, id) => {
 	return {
@@ -47,7 +52,7 @@ export const populate: PopulateOptions[] = [
 	},
 	{
 		path: 'students',
-		select: 'student_id first_name last_name email avatar',
+		select: 'first_name last_name email avatar student_id',
 		transform,
 		options: {
 			lean: true,
@@ -55,7 +60,7 @@ export const populate: PopulateOptions[] = [
 	},
 	{
 		path: 'owner',
-		select: ' first_name last_name email avatar',
+		select: 'first_name last_name email avatar',
 		transform,
 		options: {
 			lean: true,
@@ -76,6 +81,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		private readonly configService: ConfigService,
 		@InjectModel(Class.name)
 		private readonly class_model: PaginateModel<ClassDocument>,
+		private readonly event_emitter: EventEmitter2,
 	) {
 		super(classes_repo);
 		this.uid = new ShortUniqueId({ length: 7 });
@@ -91,11 +97,17 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	}
 
 	async create(createClassDto: CreateClassDto) {
-		return await this.classes_repo
+		const result = await this.classes_repo
 			.create({ ...createClassDto, code: this.uid.randomUUID() })
 			.then((entity: ClassDocument) =>
 				entity.populate(['owner', 'teachers', 'students']),
 			);
+		await this.event_emitter.emitAsync(
+			'class.created',
+			new ClassCreatedEvent(result.id),
+		);
+
+		return result;
 	}
 
 	async findAll(
@@ -130,9 +142,21 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	}
 
 	async addMember(id: string, user_id: string, role: USER_ROLE) {
-		return this.classes_repo
+		const result = await this.classes_repo
 			.addMember(id, user_id, role)
 			.then((entity: ClassDocument) => entity.populate(populate));
+
+		if (role === USER_ROLE.STUDENT) {
+			const newStudent = await this.usersService.findOne(user_id);
+			await this.event_emitter.emit('class.students.joined', {
+				class_id: id,
+				student_id: newStudent.student_id,
+				user_id: newStudent.id,
+				full_name: newStudent.full_name,
+			} as UpdateGrade);
+		}
+
+		return result;
 	}
 
 	update(id: string, updateClassDto: UpdateClassDto) {
@@ -246,16 +270,26 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	async removeMember(removeUserFromClassDto: RemoveUserFromClassDto) {
 		const { class_id: id, users_id, role } = removeUserFromClassDto;
 
-		await this.class_model.findOneAndUpdate(
-			{ id },
-			{
-				$pull: {
-					[role === USER_ROLE.STUDENT ? 'students' : 'teachers']: {
-						$in: users_id,
+		try {
+			await this.class_model.updateOne(
+				{ _id: id },
+				{
+					$pull: {
+						[role === USER_ROLE.STUDENT ? 'students' : 'teachers']: {
+							$in: users_id,
+						},
 					},
 				},
-			},
-		);
+				{
+					new: true,
+					includeResultMetadata: true,
+				},
+			);
+
+			return true;
+		} catch (error) {
+			return false;
+		}
 	}
 
 	async sendInvitationLink(

@@ -15,6 +15,7 @@ import {
 	ParseFilePipe,
 	MaxFileSizeValidator,
 	FileTypeValidator,
+	UnauthorizedException,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
@@ -343,6 +344,39 @@ export class ClassesController {
 		}
 	}
 
+	@ApiOperation({
+		summary: "Teacher and student leave class. Owner can't leave class",
+	})
+	@Delete(':class_id/leave')
+	async leaveClass(
+		@AuthUser() user,
+		@Role() userRole,
+		@Param('class_id') class_id: string,
+	) {
+		const classDetail = await this.classesService.findOne(class_id);
+		if (classDetail.owner.id === user.id) {
+			throw new BadRequestException('Owner can not left class');
+		}
+
+		const { students, teachers } = classDetail;
+
+		if (
+			students.every((student) => student.id !== user.id) &&
+			teachers.every((teacher) => teacher.id !== user.id)
+		) {
+			throw new UnauthorizedException('You are not in this class');
+		}
+
+		return this.classesService.removeMember({
+			class_id,
+			users_id: [user.id],
+			role: userRole,
+		});
+	}
+
+	@ApiOperation({
+		summary: 'Owner kick teachers, students',
+	})
 	@Roles(USER_ROLE.TEACHER, USER_ROLE.ADMIN)
 	@Delete('kick')
 	async kick(
@@ -353,6 +387,29 @@ export class ClassesController {
 		const classDetail = await this.classesService.findOne(kickUserDto.class_id);
 		if (userRole !== USER_ROLE.ADMIN && classDetail.owner.id !== user.id) {
 			throw new BadRequestException('Only owner can kick user');
+		}
+
+		const { students, teachers } = classDetail;
+		const { users_id, role } = kickUserDto;
+		if (role === USER_ROLE.TEACHER) {
+			const invalid_ids = users_id.map((id) => {
+				return teachers.every((teacher) => teacher.id !== user.id) && id;
+			});
+
+			if (invalid_ids.length !== 0) {
+				throw new UnauthorizedException(
+					`Users are not in this class: ${invalid_ids.join(', ')}`,
+				);
+			}
+		} else {
+			const invalid_ids = users_id.map((id) => {
+				return students.every((student) => student.id !== user.id) && id;
+			});
+			if (invalid_ids.length !== 0) {
+				throw new UnauthorizedException(
+					`Users are not in this class: ${invalid_ids.join(', ')} `,
+				);
+			}
 		}
 
 		return this.classesService.removeMember(kickUserDto);
