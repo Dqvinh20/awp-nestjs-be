@@ -64,7 +64,7 @@ export class UsersService extends BaseServiceAbstract<User> {
 		try {
 			const user = await this.users_repository.findOneByCondition({ email });
 			if (!user) {
-				throw new NotFoundException();
+				throw new NotFoundException('User not found');
 			}
 			return user;
 		} catch (error) {

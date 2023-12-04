@@ -48,7 +48,6 @@ export class AuthController {
 		private readonly configService: ConfigService,
 	) {}
 
-	@Post('sign-up')
 	@ApiOperation({
 		summary: 'User sign up to platform',
 		description: '## User sign up',
@@ -140,6 +139,7 @@ export class AuthController {
 			},
 		},
 	})
+	@Post('sign-up')
 	async signUp(@Body() sign_up_dto: SignUpDto, @Req() request) {
 		const user = await this.auth_service.signUp(sign_up_dto);
 		await this.emailConfirmationService.sendVerificationLink(sign_up_dto.email);
