@@ -14,6 +14,9 @@ import { EmailConfirmationModule } from '@modules/emailConfirmation/emailConfirm
 import { ClassesModule } from '@modules/classes/classes.module';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { NotificationsModule } from '@modules/notifications/notifications.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ClassGradesModule } from './modules/class_grades/class_grades.module';
 
 @Module({
 	imports: [
@@ -111,11 +114,14 @@ import { APP_GUARD } from '@nestjs/core';
 				},
 			}),
 		}),
+		EventEmitterModule.forRoot(),
 		UserRolesModule,
 		AuthModule,
 		UsersModule,
 		ClassesModule,
 		EmailConfirmationModule,
+		NotificationsModule,
+		ClassGradesModule,
 	],
 	controllers: [AppController],
 	providers: [

@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsOptional, IsPositive, Max } from 'class-validator';
-import { FilterQuery, PopulateOptions } from 'mongoose';
+import { PopulateOptions } from 'mongoose';
 import { ToBoolean } from 'src/decorators/parse.decorator';
 import { PaginateParams } from 'src/types/common.type';
 

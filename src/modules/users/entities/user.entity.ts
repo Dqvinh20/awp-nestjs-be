@@ -50,14 +50,7 @@ export class User extends BaseEntity {
 	@Prop({
 		unique: true,
 	})
-	@Transform(
-		({ value, obj }) => {
-			if (obj?.role === USER_ROLE.STUDENT) {
-				return value;
-			}
-		},
-		{ toClassOnly: true },
-	)
+	@Expose()
 	student_id: string;
 
 	@Prop({
