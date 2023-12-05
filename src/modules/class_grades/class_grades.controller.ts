@@ -154,4 +154,36 @@ export class ClassGradesController {
 		await this.classGradesService.checkClassTeacher(class_id, user.id);
 		return this.classGradesService.updateGradeOfStudent(class_id, body_and_col);
 	}
+
+	@ApiOperation({
+		summary: 'Finish class grade',
+	})
+	@Roles(USER_ROLE.TEACHER)
+	@Patch(':class_id/finish')
+	async finishClassGrade(
+		@Param('class_id') class_id: string,
+		@AuthUser() user: User,
+	) {
+		if (!isMongoId(class_id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		await this.classGradesService.checkClassTeacher(class_id, user.id);
+		return await this.classGradesService.markFinished(class_id);
+	}
+
+	@ApiOperation({
+		summary: 'UnFinish class grade',
+	})
+	@Roles(USER_ROLE.TEACHER)
+	@Patch(':class_id/unfinish')
+	async unfinishClassGrade(
+		@Param('class_id') class_id: string,
+		@AuthUser() user: User,
+	) {
+		if (!isMongoId(class_id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		await this.classGradesService.checkClassTeacher(class_id, user.id);
+		return await this.classGradesService.markUnfinished(class_id);
+	}
 }

@@ -162,34 +162,27 @@ export class ClassGradesService {
 	}
 
 	findAll() {
-		return this.class_grades_model
-			.find()
-
-			.exec();
+		return this.class_grades_model.find().exec();
 	}
 
 	async findOneByClassIdForStudent(class_id: string, student_id: string) {
-		const classGrade = (
-			await this.class_grades_model.findOne({
+		const result = await this.class_grades_model.findOne(
+			{
 				class: class_id,
-			})
-		).toObject();
-		const { grade_rows, grade_columns } = classGrade;
-		const gradeRow = grade_rows.find(
-			(row) => row.student.toString() === '6565e9808f4f090dcfebaf24',
+				'grade_rows.student': new ObjectId(student_id),
+			},
+			{
+				_id: 1,
+				class: 1,
+				grade_columns: 1,
+				'grade_rows.$': 1,
+				isFinished: 1,
+				updated_at: 1,
+				created_at: 1,
+			},
 		);
 
-		gradeRow.grades = gradeRow.grades.map((grade) => {
-			const col = grade_columns.find(
-				(col) => col._id.toString() === grade.column.toString(),
-			);
-			return {
-				...grade,
-				column: col.name,
-			};
-		}) as any[];
-		delete gradeRow.student;
-		return gradeRow;
+		return result;
 	}
 
 	findOneByClassId(class_id: string) {
@@ -446,7 +439,6 @@ export class ClassGradesService {
 			],
 		);
 		await this.event_emitter.emitAsync('class_grade.updated', class_id);
-
 		return this.findOneByClassId(class_id);
 	}
 
@@ -460,15 +452,17 @@ export class ClassGradesService {
 	}
 
 	@OnEvent('class_grade.updated', { async: true })
+	async handleOnClassGradeUpdated(class_id: string) {
+		await this.markUnfinished(class_id);
+	}
+
 	async markUnfinished(class_id: string) {
 		return await this.class_grades_model.findOneAndUpdate(
 			{
-				class: new ObjectId(class_id),
+				class: class_id,
 			},
 			{
-				$set: {
-					is_finished: false,
-				},
+				isFinished: false,
 			},
 			{
 				new: true,
@@ -479,12 +473,10 @@ export class ClassGradesService {
 	async markFinished(class_id: string) {
 		return await this.class_grades_model.findOneAndUpdate(
 			{
-				class: new ObjectId(class_id),
+				class: class_id,
 			},
 			{
-				$set: {
-					is_finished: true,
-				},
+				isFinished: true,
 			},
 			{
 				new: true,

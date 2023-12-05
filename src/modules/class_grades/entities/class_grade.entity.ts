@@ -2,7 +2,7 @@ import { Class } from '@modules/classes/entities/class.entity';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { GradeColumn, GradeColumnSchema } from './grade_column.entity';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { BaseEntity } from '@modules/shared/base/base.entity';
 import { GradeRow, GradeRowSchema } from './grade_row.entity';
 
@@ -27,6 +27,14 @@ export class ClassGrade extends BaseEntity {
 		unique: true,
 		index: true,
 	})
+	@Transform(
+		({ value }) => {
+			return value.id.toString();
+		},
+		{
+			toPlainOnly: true,
+		},
+	)
 	@Type(() => Class)
 	class: Class;
 

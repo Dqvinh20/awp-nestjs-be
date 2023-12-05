@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { GradeColumn } from './grade_column.entity';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export type GradeDocument = HydratedDocument<Grade>;
 
@@ -14,6 +14,14 @@ export class Grade {
 		unique: true,
 		index: true,
 	})
+	@Transform(
+		({ value }) => {
+			return value?.id.toString();
+		},
+		{
+			toPlainOnly: true,
+		},
+	)
 	@Type(() => GradeColumn)
 	column: GradeColumn;
 

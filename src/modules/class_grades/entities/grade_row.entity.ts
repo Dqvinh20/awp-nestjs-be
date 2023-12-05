@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { User } from '@modules/users/entities/user.entity';
 import { Grade, GradeSchema } from './grade.entity';
 
@@ -26,6 +26,14 @@ export class GradeRow {
 		ref: User.name,
 		unique: true,
 	})
+	@Transform(
+		({ value }) => {
+			return value?.id.toString();
+		},
+		{
+			toPlainOnly: true,
+		},
+	)
 	@Type(() => User)
 	student: User;
 
