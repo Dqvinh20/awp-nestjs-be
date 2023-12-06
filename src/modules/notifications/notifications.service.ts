@@ -43,8 +43,8 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		try {
 			const payload = await this.jwt_service.verify(token, {
 				secret: access_token_public_key,
+				ignoreExpiration: false,
 			});
-
 			if (!payload) {
 				socket.disconnect(true);
 				return;
@@ -54,12 +54,13 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 				socket.disconnect(true);
 				return;
 			}
+
+			socket.disconnect(true);
 		}
 	}
 
 	@OnEvent('notification.create')
 	create(data: CreateNotificationDto) {
-		this.logger.debug('Create notification: ', JSON.stringify(data, null, 2));
 		return this.notif_repository.create(data);
 	}
 

@@ -8,6 +8,7 @@ import {
 	ConnectedSocket,
 	MessageBody,
 	OnGatewayConnection,
+	OnGatewayDisconnect,
 	SubscribeMessage,
 	WebSocketGateway,
 	WebSocketServer,
@@ -36,7 +37,9 @@ import {
 		credentials: true,
 	},
 })
-export class NotificationsGateway implements OnGatewayConnection {
+export class NotificationsGateway
+	implements OnGatewayConnection, OnGatewayDisconnect
+{
 	@WebSocketServer()
 	private readonly server: Server;
 	logger = new Logger(NotificationsGateway.name);
@@ -46,26 +49,27 @@ export class NotificationsGateway implements OnGatewayConnection {
 		private readonly event_emitter: EventEmitter2,
 	) {}
 
-	async handleConnection(socket: Socket) {
-		await this.notifications_service.authenSocketUser(socket);
+	handleDisconnect(client: Socket) {
+		this.logger.debug(`Client disconnected: ${client.id}`);
+	}
+
+	async handleConnection(client: Socket) {
+		await this.notifications_service.authenSocketUser(client);
+		if (client.connected) {
+			this.logger.debug(`Client connected: ${client.id}`);
+		}
 	}
 
 	@SubscribeMessage('join')
-	async joinRoom(
-		@ConnectedSocket() socket: Socket,
-		@MessageBody() roomId: string,
-	) {
-		await socket.join(roomId);
-		return `User ${socket.id} joined room ${roomId}`;
+	joinRoom(@ConnectedSocket() socket: Socket, @MessageBody() roomId: string) {
+		this.logger.debug(`User ${socket.id} join room '${roomId}'`);
+		return socket.join(roomId);
 	}
 
 	@SubscribeMessage('leave')
-	async leaveRoom(
-		@ConnectedSocket() socket: Socket,
-		@MessageBody() roomId: string,
-	) {
-		await socket.leave(roomId);
-		return `User ${socket.id} left room ${roomId}`;
+	leaveRoom(@ConnectedSocket() socket: Socket, @MessageBody() roomId: string) {
+		this.logger.debug(`User ${socket.id} left room '${roomId}'`);
+		return socket.leave(roomId);
 	}
 
 	@OnEvent(ServerEvents.GRADE_FINISHED, { async: true })
