@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+	BadRequestException,
+	Injectable,
+	Logger,
+	NotFoundException,
+} from '@nestjs/common';
 import { CreateClassGradeDto } from './dto/create-class_grade.dto';
 import mongoose, { Model } from 'mongoose';
 import { ClassGrade } from './entities/class_grade.entity';
@@ -14,6 +19,11 @@ import { User } from '@modules/users/entities/user.entity';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 import { keyBy, values, merge } from 'lodash';
 import { Grade } from './entities/grade.entity';
+import { FinishGradeEvent } from '@modules/shared/events/FinishGrade.event';
+import {
+	ServerEvents,
+	SocketBroadcastParams,
+} from 'src/types/notifications.type';
 
 const ObjectId = mongoose.Types.ObjectId;
 
@@ -457,7 +467,7 @@ export class ClassGradesService {
 	}
 
 	async markUnfinished(class_id: string) {
-		return await this.class_grades_model.findOneAndUpdate(
+		const result = await this.class_grades_model.findOneAndUpdate(
 			{
 				class: class_id,
 			},
@@ -468,10 +478,32 @@ export class ClassGradesService {
 				new: true,
 			},
 		);
+		this.event_emitter.emit(ServerEvents.SOCKET_BROADCAST, {
+			room: class_id,
+			event: ServerEvents.GRADE_UNFINISHED,
+			data: {
+				class_id,
+			},
+		} as SocketBroadcastParams);
+		return result;
 	}
 
-	async markFinished(class_id: string) {
-		return await this.class_grades_model.findOneAndUpdate(
+	async markFinished(class_id: string, teacher: User) {
+		const class_grade = await this.class_grades_model
+			.findOne({
+				class: class_id,
+			})
+			.populate('class');
+
+		if (!class_grade) {
+			throw new NotFoundException('Class grade not found');
+		}
+
+		if (class_grade.isFinished) {
+			throw new BadRequestException('Class grade is already finished');
+		}
+
+		const result = await this.class_grades_model.findOneAndUpdate(
 			{
 				class: class_id,
 			},
@@ -482,5 +514,21 @@ export class ClassGradesService {
 				new: true,
 			},
 		);
+		await this.event_emitter.emitAsync(
+			ServerEvents.GRADE_FINISHED,
+			ServerEvents.GRADE_FINISHED,
+			new FinishGradeEvent({
+				title: 'Class Notification',
+				message: `Teacher ${
+					teacher.full_name ?? teacher.email
+				} has finished the grade of class '<i>${
+					class_grade.class.name
+				}</i>'. Please check it out!`,
+				class: class_id,
+				sender: class_grade.class.owner,
+				ref_url: `/class/${class_id}/grade`,
+			}),
+		);
+		return result;
 	}
 }

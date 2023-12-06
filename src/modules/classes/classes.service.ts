@@ -41,6 +41,9 @@ const transform = (doc, id) => {
 
 export const populate: PopulateOptions[] = [
 	{
+		path: 'news',
+	},
+	{
 		path: 'teachers',
 		select: ' first_name last_name email avatar',
 		transform,

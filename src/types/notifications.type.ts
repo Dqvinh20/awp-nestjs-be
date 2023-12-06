@@ -23,3 +23,25 @@ export type ClientNotificationEvents =
 	| TeacherClientNotificationEvents
 	| StudentClientNotificationEvents
 	| BaseClientNotificationEvents;
+
+enum ClassGradeEvent {
+	GRADE_FINISHED = 'grade.finished',
+	GRADE_UNFINISHED = 'grade.unfinished',
+}
+
+enum SocketEvent {
+	SOCKET_BROADCAST = 'notification.broadcast',
+}
+
+export const ServerEvents = {
+	...ClassGradeEvent,
+	...SocketEvent,
+};
+
+export type ServerEvents = ClassGradeEvent | SocketEvent;
+
+export interface SocketBroadcastParams {
+	room: string | string[];
+	event: string;
+	data: any;
+}

@@ -20,7 +20,7 @@ export class NotificationsController {
 		return await this.notificationsService.findAllByUserIdPaginate(user.id, {
 			...body,
 			populate: {
-				path: 'created_by',
+				path: 'sender',
 				select: 'id first_name last_name avatar',
 				transform(doc: User) {
 					return {

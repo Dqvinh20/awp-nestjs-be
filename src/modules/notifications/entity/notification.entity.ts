@@ -4,21 +4,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Type } from 'class-transformer';
 import mongoose, { HydratedDocument } from 'mongoose';
 import * as mongoosePaginate from 'mongoose-paginate-v2';
+import { ReadBy, ReadBySchema } from './read_by.entity';
+import { Class } from '@modules/classes/entities/class.entity';
+import { DeletedBy, DeletedBySchema } from './delete_by.entity';
 
 export type NotificationDocument = HydratedDocument<Notification>;
-
-export enum NOTIFICATION_STATUS {
-	READ = 'READ',
-	UNREAD = 'UNREAD',
-	REMOVE = 'REMOVE',
-}
-
-export enum NOTIFICATION_TYPE {
-	INFO = 'INFO',
-	WARNING = 'WARNING',
-	ERROR = 'ERROR',
-	SUCCESS = 'SUCCESS',
-}
 
 @Schema({
 	collection: 'notifications',
@@ -44,41 +34,58 @@ export class Notification extends BaseEntity {
 		type: String,
 		maxlength: 255,
 	})
-	description!: string;
+	message?: string;
 
 	@Prop({
 		required: false,
 		type: String,
 	})
-	icon?: string;
+	ref_url?: string;
 
 	@Prop({
 		required: false,
-		type: String,
+		default: [],
+		type: [
+			{
+				type: ReadBySchema,
+			},
+		],
 	})
-	link?: string;
+	@Type(() => ReadBy)
+	read_by?: ReadBy[];
 
 	@Prop({
 		required: false,
-		default: NOTIFICATION_STATUS.UNREAD,
-		enum: NOTIFICATION_STATUS,
+		default: [],
+		type: [
+			{
+				type: DeletedBySchema,
+			},
+		],
 	})
-	status: NOTIFICATION_STATUS;
+	@Type(() => DeletedBy)
+	deleted_by?: DeletedBy[];
 
 	@Prop({
 		required: false,
-		default: NOTIFICATION_TYPE.INFO,
-		enum: NOTIFICATION_TYPE,
-	})
-	type: NOTIFICATION_TYPE;
-
-	@Prop({
-		required: true,
-		ref: User.name,
 		type: mongoose.Schema.Types.ObjectId,
+		ref: Class.name,
+	})
+	@Type(() => Class)
+	class?: Class;
+
+	@Prop({
+		required: false,
+		default: [],
+		type: [
+			{
+				type: mongoose.Schema.Types.ObjectId,
+				ref: User.name,
+			},
+		],
 	})
 	@Type(() => User)
-	to!: User;
+	receivers?: User[];
 
 	@Prop({
 		require: true,
@@ -86,7 +93,7 @@ export class Notification extends BaseEntity {
 		type: mongoose.Schema.Types.ObjectId,
 	})
 	@Type(() => User)
-	created_by!: User;
+	sender!: User;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

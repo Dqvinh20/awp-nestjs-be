@@ -1,6 +1,10 @@
-import { populate } from './../classes/classes.service';
-import { BaseEntity } from '@modules/shared/base/base.entity';
-import { Inject, Injectable } from '@nestjs/common';
+import {
+	Inject,
+	Injectable,
+	BadRequestException,
+	NotFoundException,
+	Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Socket } from 'socket.io';
 import { access_token_public_key } from 'src/constraints/jwt.constraint';
@@ -10,13 +14,15 @@ import { CreateNotificationDto } from './dto/create-notification.dto';
 import { PaginateModel, PopulateOptions } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import {
-	NOTIFICATION_STATUS,
 	NotificationDocument,
 	Notification as NotificationEntity,
 } from './entity/notification.entity';
 import { FindNotificationsDto } from './dto/find-all-paginate.dto';
+import { OnEvent } from '@nestjs/event-emitter';
+
 @Injectable()
 export class NotificationsService extends BaseServiceAbstract<NotificationEntity> {
+	private readonly logger = new Logger(NotificationsService.name);
 	constructor(
 		@Inject('NotificationsRepositoryInterface')
 		private readonly notif_repository: NotificationsRepositoryInterface,
@@ -51,7 +57,9 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		}
 	}
 
+	@OnEvent('notification.create')
 	create(data: CreateNotificationDto) {
+		this.logger.debug('Create notification: ', JSON.stringify(data, null, 2));
 		return this.notif_repository.create(data);
 	}
 
@@ -64,41 +72,130 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		{ populate }: { populate?: PopulateOptions | PopulateOptions[] },
 	) {
 		return this.notif_model
-			.find({ to: user_id, status: { $ne: NOTIFICATION_STATUS.REMOVE } })
+			.find({
+				receivers: user_id,
+				deleted_by: {
+					user: {
+						$nin: [user_id],
+					},
+				},
+			})
 			.sort({ createdAt: -1 })
 			.populate(populate);
 	}
 
-	findAllByUserIdPaginate(user_id: string, options?: FindNotificationsDto) {
-		return this.notif_model.paginate(
+	async findAllByUserIdPaginate(
+		user_id: string,
+		options?: FindNotificationsDto,
+	) {
+		return await this.notif_model.paginate(
 			{
-				to: user_id,
-				status: { $ne: NOTIFICATION_STATUS.REMOVE },
+				receivers: user_id,
+				deleted_by: {
+					user: {
+						$nin: [user_id],
+					},
+				},
 			},
 			options,
 		);
 	}
 
-	markRead(id: string) {
-		return this.notif_model.findByIdAndUpdate(id, {
-			status: NOTIFICATION_STATUS.READ,
+	async markRead(notif_id: string, user_id: string) {
+		const notification = await this.notif_model.findOne({
+			_id: notif_id,
+			receivers: user_id,
 		});
-	}
+		if (notification) {
+			throw new NotFoundException('Notification not found or not yours');
+		}
 
-	markReadAll(user_id: string) {
-		return this.notif_model.updateMany(
-			{ to: user_id },
-			{ status: NOTIFICATION_STATUS.READ },
+		const isRead = notification.read_by.find(
+			(readBy) => readBy.user.toString() === user_id,
+		);
+
+		if (isRead) {
+			throw new BadRequestException('Notification already read');
+		}
+
+		return await this.notif_model.findByIdAndUpdate(
+			notif_id,
+			{
+				$addToSet: {
+					read_by: {
+						user: user_id,
+					},
+				},
+			},
+			{ new: true },
 		);
 	}
 
-	markRemove(id: string) {
-		return this.notif_model.findByIdAndUpdate(id, {
-			status: NOTIFICATION_STATUS.REMOVE,
-		});
+	async markReadAll(user_id: string) {
+		return await this.notif_model.updateMany(
+			{
+				receivers: user_id,
+			},
+			{
+				$addToSet: {
+					read_by: {
+						user: user_id,
+					},
+				},
+			},
+			{
+				multi: true,
+				new: true,
+			},
+		);
 	}
 
-	permanentRemove(id: string) {
-		return this.notif_model.findByIdAndDelete(id);
+	async markRemove(notif_id: string, user_id: string) {
+		const notification = await this.notif_model.findOne({
+			_id: notif_id,
+			receivers: user_id,
+		});
+		if (notification) {
+			throw new NotFoundException('Notification not found or not yours');
+		}
+
+		const isDeleted = notification.deleted_by.find(
+			(deleted_by) => deleted_by.user.toString() === user_id,
+		);
+
+		if (isDeleted) {
+			throw new BadRequestException('Notification already deleted');
+		}
+
+		return await this.notif_model.findByIdAndUpdate(
+			notif_id,
+			{
+				$addToSet: {
+					deleted_by: {
+						user: user_id,
+					},
+				},
+			},
+			{ new: true },
+		);
+	}
+
+	async markRemoveAll(user_id: string) {
+		return await this.notif_model.updateMany(
+			{
+				receivers: user_id,
+			},
+			{
+				$addToSet: {
+					deleted_by: {
+						user: user_id,
+					},
+				},
+			},
+			{
+				multi: true,
+				new: true,
+			},
+		);
 	}
 }

@@ -93,6 +93,17 @@ export const ClassSchema = SchemaFactory.createForClass(Class);
 export const ClassSchemaFactory = async (configService: ConfigService) => {
 	const class_schema = ClassSchema;
 
+	class_schema.virtual('news', {
+		ref: 'Notification',
+		localField: '_id',
+		foreignField: 'class',
+		options: {
+			sort: {
+				created_at: -1,
+			},
+		},
+	});
+
 	class_schema
 		.virtual('public_invitation_link')
 		.get(function (this: ClassDocument) {

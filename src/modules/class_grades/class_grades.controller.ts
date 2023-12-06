@@ -168,7 +168,7 @@ export class ClassGradesController {
 			throw new BadRequestException('Invalid class id');
 		}
 		await this.classGradesService.checkClassTeacher(class_id, user.id);
-		return await this.classGradesService.markFinished(class_id);
+		return await this.classGradesService.markFinished(class_id, user);
 	}
 
 	@ApiOperation({

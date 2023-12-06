@@ -1,37 +1,36 @@
 import { User } from '@modules/users/entities/user.entity';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import {
-	NOTIFICATION_STATUS,
-	NOTIFICATION_TYPE,
-} from '../entity/notification.entity';
+	IsArray,
+	IsMongoId,
+	IsNotEmpty,
+	IsOptional,
+	IsString,
+	MaxLength,
+} from 'class-validator';
 
 export class CreateNotificationDto {
 	@IsNotEmpty()
 	@IsString()
-	title: string;
-
-	@IsNotEmpty()
-	@IsString()
-	description: string;
+	@MaxLength(100)
+	title!: string;
 
 	@IsOptional()
 	@IsString()
-	link?: string;
+	@MaxLength(255)
+	message?: string;
 
 	@IsOptional()
-	@IsEnum(NOTIFICATION_TYPE)
-	type?: NOTIFICATION_TYPE;
+	@IsString()
+	ref_url?: string;
 
 	@IsOptional()
-	@IsEnum(NOTIFICATION_STATUS)
-	status?: NOTIFICATION_STATUS;
+	@IsMongoId()
+	class?: string;
 
 	@IsOptional()
-	icon?: string;
+	@IsArray()
+	receivers?: string[] | User[];
 
 	@IsNotEmpty()
-	to: string | User;
-
-	@IsNotEmpty()
-	created_by: string | User;
+	sender: string | User;
 }
