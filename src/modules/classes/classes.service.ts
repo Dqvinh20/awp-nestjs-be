@@ -32,10 +32,9 @@ const transform = (doc, id) => {
 	return {
 		...doc,
 		id: id.toString(),
-		full_name:
-			doc.first_name && doc.last_name
-				? `${doc.first_name} ${doc.last_name}`
-				: '',
+		full_name: `${doc?.first_name ? doc.first_name + ' ' : ''}${
+			doc?.last_name
+		}`,
 	};
 };
 

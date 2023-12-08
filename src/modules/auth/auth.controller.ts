@@ -7,6 +7,7 @@ import {
 	Get,
 	HttpCode,
 	Logger,
+	NotFoundException,
 	Post,
 	Req,
 	Res,
@@ -212,28 +213,39 @@ export class AuthController {
 			}?return_url=${req.query.return_url}`;
 
 		try {
-			if (req.params.from.includes('sign-in')) {
-				const auth = (await this.auth_service.socialLogin(req.user)) as any;
+			const auth = (await this.auth_service.socialLogin(req.user)) as any;
 
-				// Set refresh token to cookie
-				const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
-					auth.refresh_token,
-				);
-				res.setHeader('Set-Cookie', refreshTokenCookie);
-
-				return res.redirect(successRedirectUrl(auth));
-			} else if (req.params.from.includes('sign-up')) {
-				const auth = (await this.auth_service.socialSignUp(req.user)) as any;
-				return res.redirect(successRedirectUrl(auth));
-			} else {
-				return new BadRequestException('Invalid request');
-			}
-		} catch (error) {
-			return res.redirect(
-				`${this.configService.get<string>('BASE_FE_URL')}/sign-in?error=${
-					error.message
-				}`,
+			// Set refresh token to cookie
+			const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
+				auth.refresh_token,
 			);
+			res.setHeader('Set-Cookie', refreshTokenCookie);
+
+			return res.redirect(successRedirectUrl(auth));
+		} catch (error) {
+			try {
+				if (error instanceof NotFoundException) {
+					if (error.message === 'User are not registered yet!!') {
+						const auth = (await this.auth_service.socialSignUp(
+							req.user,
+						)) as any;
+
+						// Set refresh token to cookie
+						const refreshTokenCookie = this.auth_service.getCookieRefreshToken(
+							auth.refresh_token,
+						);
+						res.setHeader('Set-Cookie', refreshTokenCookie);
+
+						return res.redirect(successRedirectUrl(auth));
+					}
+				}
+			} catch (error1) {
+				return res.redirect(
+					`${this.configService.get<string>('BASE_FE_URL')}/sign-in?error=${
+						error1.message
+					}`,
+				);
+			}
 		}
 	}
 
