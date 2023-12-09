@@ -1,5 +1,5 @@
 import { ApiTags } from '@nestjs/swagger';
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Patch, Query } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NeedAuth } from 'src/decorators/need_auth.decorator';
 import { AuthUser } from 'src/decorators/auth_user.decorator';
@@ -32,5 +32,20 @@ export class NotificationsController {
 				},
 			},
 		});
+	}
+
+	@Get('/unread/count')
+	async countUnread(@AuthUser() user: User) {
+		return await this.notificationsService.countUnread(user.id);
+	}
+
+	@Patch(':notif_id/read')
+	async markRead(@Param('notif_id') notifId: string, @AuthUser() user: User) {
+		return await this.notificationsService.markRead(user.id, notifId);
+	}
+
+	@Delete(':notif_id/remove')
+	async markRemove(@Param('notif_id') notifId: string, @AuthUser() user: User) {
+		return await this.notificationsService.markRemove(user.id, notifId);
 	}
 }

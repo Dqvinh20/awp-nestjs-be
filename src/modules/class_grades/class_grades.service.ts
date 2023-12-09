@@ -263,6 +263,7 @@ export class ClassGradesService {
 				},
 				{
 					upsert: true,
+					new: true,
 				},
 			);
 			await this.updateAllGrades(class_id, result.grade_columns);
@@ -284,22 +285,6 @@ export class ClassGradesService {
 	}
 
 	async updateAllGrades(class_id, updateGradeCols: GradeColumn[]) {
-		// Remove all deleted grade columns in grade_rows
-		await this.class_grades_model.findOneAndUpdate(
-			{
-				class: class_id,
-			},
-			{
-				$pull: {
-					'grade_rows.$[].grades': {
-						column: {
-							$nin: updateGradeCols.map((col) => col._id),
-						},
-					},
-				},
-			},
-		);
-
 		// Add new grade columns in grade_rows if not exist
 		await Promise.all(
 			updateGradeCols.map(async (col) => {
@@ -323,6 +308,22 @@ export class ClassGradesService {
 					);
 				}
 			}),
+		);
+
+		// Remove all deleted grade columns in grade_rows
+		await this.class_grades_model.findOneAndUpdate(
+			{
+				class: class_id,
+			},
+			{
+				$pull: {
+					'grade_rows.$[].grades': {
+						column: {
+							$nin: updateGradeCols.map((col) => col._id),
+						},
+					},
+				},
+			},
 		);
 	}
 
@@ -518,13 +519,12 @@ export class ClassGradesService {
 			ServerEvents.GRADE_FINISHED,
 			ServerEvents.GRADE_FINISHED,
 			new FinishGradeEvent({
-				title: 'Class Notification',
+				title: class_grade.class.name,
 				message: `Teacher ${
 					teacher.full_name ?? teacher.email
-				} has finished the grade of class '<i>${
-					class_grade.class.name
-				}</i>'. Please check it out!`,
+				} has finished the grade of class. Please check it out!`,
 				class: class_id,
+				receivers: class_grade.class.students,
 				sender: class_grade.class.owner,
 				ref_url: `/class/${class_id}/grade`,
 			}),

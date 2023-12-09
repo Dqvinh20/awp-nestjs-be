@@ -19,6 +19,7 @@ import {
 } from './entity/notification.entity';
 import { FindNotificationsDto } from './dto/find-all-paginate.dto';
 import { OnEvent } from '@nestjs/event-emitter';
+import { Class, ClassDocument } from '@modules/classes/entities/class.entity';
 
 @Injectable()
 export class NotificationsService extends BaseServiceAbstract<NotificationEntity> {
@@ -28,6 +29,8 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		private readonly notif_repository: NotificationsRepositoryInterface,
 		@InjectModel(NotificationEntity.name)
 		private readonly notif_model: PaginateModel<NotificationDocument>,
+		@InjectModel(Class.name)
+		private readonly class_model: PaginateModel<ClassDocument>,
 		private readonly jwt_service: JwtService,
 	) {
 		super(notif_repository);
@@ -89,25 +92,64 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		user_id: string,
 		options?: FindNotificationsDto,
 	) {
+		const joinedClass = await this.class_model.find(
+			{
+				$or: [
+					{
+						teachers: [user_id],
+					},
+					{
+						students: [user_id],
+					},
+					{
+						owner: user_id,
+					},
+				],
+			},
+			{
+				_id: 1,
+			},
+		);
 		return await this.notif_model.paginate(
 			{
-				receivers: user_id,
-				deleted_by: {
-					user: {
-						$nin: [user_id],
+				$or: [
+					{ receivers: user_id },
+					{
+						class: {
+							$in: joinedClass.map((class_) => class_._id),
+						},
 					},
+				],
+				'deleted_by.user': {
+					$ne: user_id,
+				},
+				sender: {
+					$ne: user_id,
 				},
 			},
 			options,
 		);
 	}
 
-	async markRead(notif_id: string, user_id: string) {
+	async countUnread(user_id: string) {
+		return await this.notif_model.countDocuments({
+			receivers: user_id,
+			'read_by.user': {
+				$nin: [user_id],
+			},
+			'deleted_by.user': {
+				$nin: [user_id],
+			},
+		});
+	}
+
+	async markRead(user_id: string, notif_id: string) {
 		const notification = await this.notif_model.findOne({
 			_id: notif_id,
 			receivers: user_id,
 		});
-		if (notification) {
+
+		if (!notification) {
 			throw new NotFoundException('Notification not found or not yours');
 		}
 
@@ -151,12 +193,13 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		);
 	}
 
-	async markRemove(notif_id: string, user_id: string) {
+	async markRemove(user_id: string, notif_id: string) {
 		const notification = await this.notif_model.findOne({
 			_id: notif_id,
 			receivers: user_id,
 		});
-		if (notification) {
+
+		if (!notification) {
 			throw new NotFoundException('Notification not found or not yours');
 		}
 

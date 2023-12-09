@@ -10,6 +10,11 @@ import {
 	NotificationSchemaFactory,
 } from './entity/notification.entity';
 import { NotificationsController } from './notifications.controller';
+import {
+	Class,
+	ClassSchemaFactory,
+} from '@modules/classes/entities/class.entity';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
 	imports: [
@@ -17,6 +22,14 @@ import { NotificationsController } from './notifications.controller';
 			{
 				name: Notification.name,
 				useFactory: NotificationSchemaFactory,
+			},
+		]),
+		MongooseModule.forFeatureAsync([
+			{
+				name: Class.name,
+				imports: [ConfigModule],
+				inject: [ConfigService],
+				useFactory: ClassSchemaFactory,
 			},
 		]),
 		JwtModule,

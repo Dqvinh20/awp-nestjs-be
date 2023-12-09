@@ -75,7 +75,7 @@ export class ClassGradesController {
 
 		if (role === USER_ROLE.STUDENT) {
 			if (!result.isFinished) {
-				throw new UnauthorizedException(
+				throw new BadRequestException(
 					'You are not allowed to view this class grade',
 				);
 			}

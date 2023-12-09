@@ -14,7 +14,7 @@
 		"docker:dev": "docker compose --env-file ./.env -f docker-compose.dev.yml up -d",
 		"docker:dev:config": "docker compose --env-file ./.env -f docker-compose.dev.yml config",
 		"docker:dev:remove": "docker compose --env-file ./.env -f docker-compose.dev.yml down",
-		"start:debug": "nest start --debug --watch",
+		"start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
 		"start:prod": "cross-env NODE_ENV=production node dist/main",
 		"lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
 		"test": "jest",

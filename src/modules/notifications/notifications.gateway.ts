@@ -79,7 +79,7 @@ export class NotificationsGateway
 	) {
 		const notif = await this.notifications_service.create(data);
 		await this.broadcast({
-			room: data.class,
+			room: [data.class, ...data.receivers.map((id: any) => id.toString())],
 			event,
 			data: notif,
 		});
