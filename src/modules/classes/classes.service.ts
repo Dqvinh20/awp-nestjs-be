@@ -26,7 +26,7 @@ import { RemoveUserFromClassDto } from './dto/remove-user-from-class.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ClassCreatedEvent } from '@modules/shared/events/ClassCreatedEvent';
-import { UpdateGrade } from '@modules/class_grades/dto/update-grade.dto';
+import { UpdateGradeDto } from '@modules/class_grades/dto/update-grade.dto';
 
 const transform = (doc, id) => {
 	return {
@@ -153,7 +153,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 				student_id: newStudent.student_id,
 				user_id: newStudent.id,
 				full_name: newStudent.full_name,
-			} as UpdateGrade);
+			} as UpdateGradeDto);
 		}
 
 		return result;

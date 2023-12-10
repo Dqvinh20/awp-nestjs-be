@@ -10,6 +10,7 @@ import {
 	Logger,
 	UnauthorizedException,
 	SerializeOptions,
+	Delete,
 } from '@nestjs/common';
 import { ClassGradesService } from './class_grades.service';
 import { CreateClassGradeDto } from './dto/create-class_grade.dto';
@@ -23,9 +24,9 @@ import { NeedAuth } from 'src/decorators/need_auth.decorator';
 import { isMongoId } from 'class-validator';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 import { User } from '@modules/users/entities/user.entity';
-import { UpdateGrade } from './dto/update-grade.dto';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'src/decorators/role.decorator';
+import { UpdateManyGradeDto } from './dto/update-many-grade.dto';
 
 @ApiTags('Class Grades')
 @Controller('class-grades')
@@ -82,7 +83,7 @@ export class ClassGradesController {
 
 			return await this.classGradesService.findOneByClassIdForStudent(
 				class_id,
-				user.id,
+				user.student_id,
 			);
 		}
 
@@ -141,10 +142,10 @@ export class ClassGradesController {
 		summary: 'Update student grade',
 	})
 	@Roles(USER_ROLE.TEACHER)
-	@Patch(':class_id')
+	@Patch(':class_id/rows')
 	async updateGrade(
 		@Param('class_id') class_id: string,
-		@Body() body: UpdateGrade,
+		@Body() body: UpdateManyGradeDto,
 		@Body() body_and_col: any,
 		@AuthUser() user: User,
 	) {
@@ -152,7 +153,30 @@ export class ClassGradesController {
 			throw new BadRequestException('Invalid class id');
 		}
 		await this.classGradesService.checkClassTeacher(class_id, user.id);
-		return this.classGradesService.updateGradeOfStudent(class_id, body_and_col);
+		return this.classGradesService.updateManyGrades(
+			class_id,
+			body_and_col.grade_rows,
+		);
+	}
+
+	@ApiOperation({
+		summary: 'Remove student grade',
+	})
+	@Roles(USER_ROLE.TEACHER)
+	@Delete(':class_id/rows/:row_id')
+	async removeGradeRow(
+		@Param('class_id') class_id: string,
+		@Param('row_id') row_id: string,
+		@AuthUser() user: User,
+	) {
+		if (!isMongoId(class_id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		if (!isMongoId(row_id)) {
+			throw new BadRequestException('Invalid row id');
+		}
+		await this.classGradesService.checkClassTeacher(class_id, user.id);
+		return this.classGradesService.removeGradeRow(class_id, row_id);
 	}
 
 	@ApiOperation({

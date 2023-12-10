@@ -13,7 +13,7 @@ import {
 	UpsertGradeColumnsDto,
 } from './dto/update-grade_column.dto';
 import { GradeColumn } from './entities/grade_column.entity';
-import { UpdateGrade } from './dto/update-grade.dto';
+import { UpdateGradeDto } from './dto/update-grade.dto';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { User } from '@modules/users/entities/user.entity';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
@@ -154,6 +154,22 @@ export class ClassGradesService {
 	}
 	//--------------------------------------------
 
+	private transformGradeRowDto(gradeRowDto: UpdateGradeDto[]) {
+		return gradeRowDto.map((col) => {
+			let id = col._id;
+
+			if (col.id) {
+				id = col.id ? col.id : new ObjectId();
+				delete col.id;
+			}
+
+			return {
+				...col,
+				_id: id,
+			};
+		});
+	}
+
 	private transformGradeColumnDto(gradeColumnDto: GradeColumnDto[]) {
 		return gradeColumnDto.map((col) => {
 			const id = col.id ? col.id : new ObjectId();
@@ -179,7 +195,7 @@ export class ClassGradesService {
 		const result = await this.class_grades_model.findOne(
 			{
 				class: class_id,
-				'grade_rows.student': new ObjectId(student_id),
+				'grade_rows.student_id': student_id,
 			},
 			{
 				_id: 1,
@@ -266,7 +282,7 @@ export class ClassGradesService {
 					new: true,
 				},
 			);
-			await this.updateAllGrades(class_id, result.grade_columns);
+			await this.updateAllGradesWithNewCols(class_id, result.grade_columns);
 			await this.event_emitter.emitAsync('class_grade.updated', class_id);
 			return this.findOneByClassId(class_id);
 		} catch (error) {
@@ -284,7 +300,7 @@ export class ClassGradesService {
 		}
 	}
 
-	async updateAllGrades(class_id, updateGradeCols: GradeColumn[]) {
+	async updateAllGradesWithNewCols(class_id, updateGradeCols: GradeColumn[]) {
 		// Add new grade columns in grade_rows if not exist
 		await Promise.all(
 			updateGradeCols.map(async (col) => {
@@ -327,7 +343,20 @@ export class ClassGradesService {
 		);
 	}
 
-	async updateGradeOfStudent(class_id: string, updateGradeRow: UpdateGrade) {
+	async updateManyGrades(
+		class_id: string,
+		updateManyGradeRows: UpdateGradeDto[],
+	) {
+		await Promise.all(
+			this.transformGradeRowDto(updateManyGradeRows).map((row) => {
+				return this.updateGradeOfStudent(class_id, row);
+			}),
+		);
+
+		return this.findOneByClassId(class_id);
+	}
+
+	async updateGradeOfStudent(class_id: string, updateGradeRow: UpdateGradeDto) {
 		const classGrade = await this.class_grades_model.findOne({
 			class: class_id,
 		});
@@ -340,7 +369,7 @@ export class ClassGradesService {
 		const grades = [];
 		await Promise.all(
 			classGrade.grade_columns.map(async (col) => {
-				if (updateGradeRow[col.name]) {
+				if (updateGradeRow[col.name] || updateGradeRow[col.name] === 0) {
 					grades.push({
 						column: new ObjectId(col._id.toString()),
 						value: updateGradeRow[col.name],
@@ -352,7 +381,7 @@ export class ClassGradesService {
 						class: class_id,
 						grade_rows: {
 							$elemMatch: {
-								student: new ObjectId(updateGradeRow.user_id),
+								student_id: updateGradeRow.student_id,
 								'grades.column': col._id,
 							},
 						},
@@ -369,9 +398,7 @@ export class ClassGradesService {
 		);
 
 		const invalidKeys = Object.keys(updateGradeRow).reduce((acc, key) => {
-			if (
-				['student_id', 'full_name', 'user_id', '_id', ...colsName].includes(key)
-			) {
+			if (['student_id', 'full_name', '_id', ...colsName].includes(key)) {
 				return acc;
 			}
 			acc.push(key);
@@ -386,14 +413,11 @@ export class ClassGradesService {
 
 		const gradeRow =
 			classGrade.grade_rows.find(
-				(row) => row.student.toString() === updateGradeRow.user_id,
+				(row) => row.student_id === updateGradeRow.student_id,
 			)?.grades ?? [];
 
 		updateGradeRow.grades =
 			values(merge(keyBy(gradeRow, 'column'), keyBy(grades, 'column'))) ?? [];
-
-		updateGradeRow.student = new ObjectId(updateGradeRow.user_id);
-		delete updateGradeRow.user_id;
 
 		await this.class_grades_model.findOneAndUpdate(
 			{
@@ -405,10 +429,7 @@ export class ClassGradesService {
 						grade_rows: {
 							$cond: [
 								{
-									$in: [
-										new ObjectId(updateGradeRow.student),
-										'$grade_rows.student',
-									],
+									$in: [updateGradeRow.student_id, '$grade_rows.student_id'],
 								},
 								{
 									$map: {
@@ -420,8 +441,8 @@ export class ClassGradesService {
 													$cond: [
 														{
 															$eq: [
-																'$$this.student',
-																new ObjectId(updateGradeRow.student),
+																'$$this.student_id',
+																updateGradeRow.student_id,
 															],
 														},
 														updateGradeRow,
@@ -449,12 +470,30 @@ export class ClassGradesService {
 				},
 			],
 		);
-		await this.event_emitter.emitAsync('class_grade.updated', class_id);
+		// await this.event_emitter.emitAsync('class_grade.updated', class_id);
 		return this.findOneByClassId(class_id);
 	}
 
+	async removeGradeRow(class_id: string, row_id: string) {
+		const result = await this.class_grades_model.findOneAndUpdate(
+			{
+				class: class_id,
+			},
+			{
+				$pull: {
+					grade_rows: {
+						_id: new ObjectId(row_id),
+					},
+				},
+			},
+			{ new: true },
+		);
+		await this.event_emitter.emitAsync('class_grade.updated', class_id);
+		return result;
+	}
+
 	@OnEvent('class.students.joined', { async: true })
-	async createStudentGrade(updateGrade: UpdateGrade) {
+	async createStudentGrade(updateGrade: UpdateGradeDto) {
 		this.logger.debug("Event 'class.students.joined' is triggered");
 		const classId = updateGrade.class_id;
 		delete updateGrade.class_id;

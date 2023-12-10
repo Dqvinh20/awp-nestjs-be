@@ -1,13 +1,9 @@
 import { IsMongoId, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-export class UpdateGrade {
+export class UpdateGradeDto {
 	@IsOptional()
 	@IsMongoId()
-	_id?: string;
-
-	@IsNotEmpty()
-	@IsMongoId()
-	user_id!: string;
+	id?: string;
 
 	@IsNotEmpty()
 	@IsString()
