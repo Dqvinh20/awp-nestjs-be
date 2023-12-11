@@ -183,8 +183,16 @@ export class ClassGradesService {
 
 	@OnEvent('class.created', { async: true })
 	async create(createClassGradeDto: CreateClassGradeDto) {
-		const doc = await this.class_grades_model.create(createClassGradeDto);
-		return doc.save();
+		try {
+			const doc = await this.class_grades_model.create({
+				...createClassGradeDto,
+				grade_columns: [],
+				grade_rows: [],
+			} as any);
+			return doc.save();
+		} catch (error) {
+			this.logger.error(error.message);
+		}
 	}
 
 	findAll() {
