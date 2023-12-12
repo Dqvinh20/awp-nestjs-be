@@ -151,7 +151,6 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			await this.event_emitter.emit('class.students.joined', {
 				class_id: id,
 				student_id: newStudent.student_id,
-				user_id: newStudent.id,
 				full_name: newStudent.full_name,
 			} as UpdateGradeDto);
 		}
@@ -285,7 +284,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 					includeResultMetadata: true,
 				},
 			);
-
+			await this.event_emitter.emitAsync('class.students.left', users_id, id);
 			return true;
 		} catch (error) {
 			return false;

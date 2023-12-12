@@ -113,11 +113,12 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		return await this.notif_model.paginate(
 			{
 				$or: [
-					{ receivers: user_id },
+					{ receivers: user_id, class: null },
 					{
 						class: {
 							$in: joinedClass.map((class_) => class_._id),
 						},
+						receivers: user_id,
 					},
 				],
 				'deleted_by.user': {
@@ -147,6 +148,9 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		const notification = await this.notif_model.findOne({
 			_id: notif_id,
 			receivers: user_id,
+			'deleted_by.user': {
+				$nin: [user_id],
+			},
 		});
 
 		if (!notification) {
@@ -178,6 +182,12 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		return await this.notif_model.updateMany(
 			{
 				receivers: user_id,
+				'read_by.user': {
+					$nin: [user_id],
+				},
+				'deleted_by.user': {
+					$nin: [user_id],
+				},
 			},
 			{
 				$addToSet: {
@@ -197,6 +207,9 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		const notification = await this.notif_model.findOne({
 			_id: notif_id,
 			receivers: user_id,
+			'deleted_by.user': {
+				$nin: [user_id],
+			},
 		});
 
 		if (!notification) {
@@ -221,6 +234,55 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 				},
 			},
 			{ new: true },
+		);
+	}
+
+	@OnEvent('class.students.left')
+	async markRemoveAllInClass(user_id: string[] | string, class_id: string) {
+		if (Array.isArray(user_id)) {
+			const updateQuery = user_id.map((id) => ({
+				user: id,
+			}));
+			return await this.notif_model.updateMany(
+				{
+					class: class_id,
+					receivers: {
+						$in: user_id,
+					},
+					'deleted_by.user': {
+						$nin: [...user_id],
+					},
+				},
+				{
+					$addToSet: {
+						deleted_by: updateQuery,
+					},
+				},
+				{
+					multi: true,
+					new: true,
+				},
+			);
+		}
+		return await this.notif_model.updateMany(
+			{
+				receivers: user_id,
+				class: class_id,
+				'deleted_by.user': {
+					$nin: [user_id],
+				},
+			},
+			{
+				$addToSet: {
+					deleted_by: {
+						user: user_id,
+					},
+				},
+			},
+			{
+				multi: true,
+				new: true,
+			},
 		);
 	}
 
