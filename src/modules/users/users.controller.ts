@@ -11,6 +11,7 @@ import {
 	UseGuards,
 	BadRequestException,
 	Req,
+	Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -25,6 +26,7 @@ import {
 	ApiBearerAuth,
 	ApiOkResponse,
 	ApiOperation,
+	ApiQuery,
 	ApiTags,
 	ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -79,6 +81,19 @@ export class UsersController {
 	@Get()
 	findAll() {
 		return this.users_service.findAll();
+	}
+
+	@ApiQuery({
+		name: 'email',
+		required: false,
+	})
+	@Roles(USER_ROLE.ADMIN, USER_ROLE.TEACHER)
+	@Get('search')
+	findUserEmail(
+		@Query('email') email,
+		@Query('role') role: USER_ROLE.TEACHER | USER_ROLE.STUDENT,
+	) {
+		return this.users_service.findAllEmails(email, role);
 	}
 
 	@ApiOperation({

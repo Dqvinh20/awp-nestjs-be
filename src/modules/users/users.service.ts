@@ -60,6 +60,42 @@ export class UsersService extends BaseServiceAbstract<User> {
 		});
 	}
 
+	async findAllEmails(
+		email = '',
+		role: USER_ROLE.TEACHER | USER_ROLE.STUDENT = USER_ROLE.STUDENT,
+	): Promise<{ count: number; emails: string[] }> {
+		const dbRole = await this.user_roles_service.findOneByCondition({
+			name: role,
+		});
+
+		const { count, items } = await this.users_repository.findAll(
+			{
+				$or: [
+					{
+						$text: {
+							$search: email,
+						},
+					},
+					{
+						email: {
+							$regex: new RegExp(email, 'i'),
+						},
+					},
+				],
+				role: dbRole,
+			},
+			{
+				projection: { _id: 0, email: 1, role: 0 },
+				populate: 'role',
+			},
+		);
+
+		return {
+			count,
+			emails: items.flatMap((item) => item.email),
+		};
+	}
+
 	async getUserByEmail(email: string): Promise<User> {
 		try {
 			const user = await this.users_repository.findOneByCondition({ email });

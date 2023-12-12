@@ -94,17 +94,17 @@ export class User extends BaseEntity {
 	})
 	role: UserRole;
 
-	@Prop({
-		type: [
-			{
-				type: AddressSchema,
-			},
-		],
-	})
-	@Type(() => Address)
-	address: Address[];
+	// @Prop({
+	// 	type: [
+	// 		{
+	// 			type: AddressSchema,
+	// 		},
+	// 	],
+	// })
+	// @Type(() => Address)
+	// address: Address[];
 
-	default_address?: string;
+	// default_address?: string;
 
 	@Prop({ default: false })
 	isEmailConfirmed: boolean;
@@ -126,18 +126,19 @@ export const UserSchema = SchemaFactory.createForClass(User);
 export const UserSchemaFactory = () => {
 	const user_schema = UserSchema;
 
-	UserSchema.virtual('full_name').get(function (this: UserDocument) {
+	user_schema.index({ email: 'text' });
+	user_schema.virtual('full_name').get(function (this: UserDocument) {
 		return this.first_name && this.last_name
 			? `${this.first_name} ${this.last_name}`
 			: '';
 	});
 
-	user_schema.virtual('default_address').get(function (this: UserDocument) {
-		if (this.address.length) {
-			return `${(this.address[0].street && ' ') || ''}${this.address[0].city} ${
-				this.address[0].state
-			} ${this.address[0].country}`;
-		}
-	});
+	// user_schema.virtual('default_address').get(function (this: UserDocument) {
+	// 	if (this.address.length) {
+	// 		return `${(this.address[0].street && ' ') || ''}${this.address[0].city} ${
+	// 			this.address[0].state
+	// 		} ${this.address[0].country}`;
+	// 	}
+	// });
 	return user_schema;
 };

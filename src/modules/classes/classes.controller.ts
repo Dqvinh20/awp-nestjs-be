@@ -375,7 +375,7 @@ export class ClassesController {
 	}
 
 	@ApiOperation({
-		summary: 'Owner kick teachers, students',
+		summary: 'Owner kick teachers, students. Teachers kick students',
 	})
 	@Roles(USER_ROLE.TEACHER, USER_ROLE.ADMIN)
 	@Delete('kick')
@@ -385,16 +385,29 @@ export class ClassesController {
 		@Body() kickUserDto: RemoveUserFromClassDto,
 	) {
 		const classDetail = await this.classesService.findOne(kickUserDto.class_id);
-		if (userRole !== USER_ROLE.ADMIN && classDetail.owner.id !== user.id) {
-			throw new BadRequestException('Only owner can kick user');
+		const { students, teachers } = classDetail;
+
+		if (
+			classDetail.owner.id !== user.id &&
+			!teachers.some((teacher) => teacher.id === user.id)
+		) {
+			throw new BadRequestException('You are not in this class');
 		}
 
-		const { students, teachers } = classDetail;
 		const { users_id, role } = kickUserDto;
+
+		const isKickOnwer = users_id.some((id) => id === classDetail.owner.id);
+		if (isKickOnwer) {
+			throw new BadRequestException('Owner can not be kicked from class');
+		}
+
 		if (role === USER_ROLE.TEACHER) {
-			const invalid_ids = users_id.map((id) => {
-				return teachers.every((teacher) => teacher.id !== user.id) && id;
-			});
+			const invalid_ids = users_id.reduce((acc, id) => {
+				if (teachers.findIndex((teacher) => teacher.id === id) === -1) {
+					acc.push(id);
+				}
+				return acc;
+			}, []);
 
 			if (invalid_ids.length !== 0) {
 				throw new UnauthorizedException(
@@ -402,9 +415,14 @@ export class ClassesController {
 				);
 			}
 		} else {
-			const invalid_ids = users_id.map((id) => {
-				return students.every((student) => student.id !== user.id) && id;
-			});
+			const invalid_ids = users_id.reduce((acc, id) => {
+				if (students.findIndex((student) => student.id === id) === -1) {
+					acc.push(id);
+				}
+
+				return acc;
+			}, []);
+
 			if (invalid_ids.length !== 0) {
 				throw new UnauthorizedException(
 					`Users are not in this class: ${invalid_ids.join(', ')} `,

@@ -213,7 +213,10 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			.map((student) => student.email)
 			.includes(authUser.email);
 		if (isAlreadyTeacher || isAlreadyStudent)
-			throw new BadRequestException('User already in class');
+			throw new BadRequestException({
+				message: 'User already in class',
+				class_id: classDetail.id,
+			});
 	}
 
 	async joinByCode(classCode: string, authUser: User) {
@@ -295,67 +298,77 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		requestUser: User,
 		invitationSendDto: InvitationSendDto,
 	) {
-		const { code, invited_email: email } = invitationSendDto;
-		const invitedUser = await this.usersService
-			.findOneByCondition({ email })
-			.then((entity) => {
-				if (!entity) throw new BadRequestException('User not found');
-				return entity;
+		const { code, invited_emails } = invitationSendDto;
+
+		const classDetail = await this.findOneByCondition({
+			code,
+		});
+		const { owner, teachers, students, isJoinable } = classDetail;
+		if (isJoinable === false) {
+			throw new BadRequestException('Class is closed for joining');
+		}
+
+		const normailizedEmails = invited_emails.filter(
+			(email) => owner.email !== email,
+		);
+
+		// Mail has joined class
+		const alreadyInClass = [...teachers, ...students]
+			.map((user) => user.email)
+			.filter((email) => normailizedEmails.includes(email));
+
+		const foundUsers = await this.usersService
+			.findAll({
+				email: {
+					$nin: [...alreadyInClass],
+					$in: [...normailizedEmails],
+				},
 			})
 			.catch((err) => {
 				throw new BadRequestException(err.message || 'Something went wrong');
 			});
 
-		const classDetail = await this.findOneByCondition({
-			code,
-		}).then((entity) => {
-			const { teachers, students, owner } = entity;
+		const { items, count } = foundUsers;
 
-			// Check if user is teacher or owner in the class
-			const onlyTeacherCanInvite =
-				teachers.map((teacher) => teacher.id).includes(requestUser.id) ||
-				owner.id === requestUser.id;
-			if (!onlyTeacherCanInvite)
-				throw new BadRequestException('Only teacher in the class can invite');
+		// Email is not exist in database
+		const notFoundEmails = items
+			.map((user) => user.email)
+			.filter((email) => {
+				return !normailizedEmails.includes(email);
+			});
 
-			// Check if user is already in the class
-			const isAlreadyTeacher = teachers
-				.map((teacher) => teacher.email)
-				.includes(email);
-			const isAlreadyStudent = students
-				.map((student) => student.email)
-				.includes(email);
-			if (isAlreadyTeacher || isAlreadyStudent)
-				throw new BadRequestException('User already in class');
+		const sendEmails = async () => {
+			const results = await Promise.allSettled(
+				items.map(async (user) => {
+					const url = await this.createInvitationLink(code, user);
+					this.mailerService.sendMail({
+						to: invitationSendDto.invited_emails,
+						template: 'enroll_invitation',
+						subject: 'Invitation to join class',
+						context: {
+							class: {
+								name: classDetail.name,
+							},
+							author: {
+								avatar: requestUser.avatar,
+								name: requestUser.full_name,
+								email: requestUser.email,
+							},
+							enrollUrl: url,
+						},
+					});
+				}),
+			);
 
-			// Check if inviting user is owner
-			const isOwner = owner.email === email;
-			if (isOwner) throw new BadRequestException('Owner can not join class');
+			const success = results.filter((result) => result.status === 'fulfilled');
+			const failed = results.filter((result) => result.status === 'rejected');
 
-			// Check if class is closed for joining
-			if (!entity.isJoinable)
-				throw new BadRequestException('Class is closed for joining');
-
-			return entity;
-		});
-
-		const url = await this.createInvitationLink(code, invitedUser);
-		return this.mailerService.sendMail({
-			to: invitationSendDto.invited_email,
-			template: 'enroll_invitation',
-			subject: 'Invitation to join class',
-			context: {
-				class: {
-					name: classDetail.name,
-				},
-				author: {
-					avatar: requestUser.avatar,
-					name: requestUser.full_name,
-					email: requestUser.email,
-				},
-				enrollUrl: url,
-			},
-		});
+			return {
+				success: success.length,
+				failed: failed.length,
+			};
+		};
+		return await sendEmails();
 	}
 
 	async createWorkbookStudentList(data: any, file_type: XLSX.BookType) {
