@@ -11,10 +11,24 @@ import {
 	UnauthorizedException,
 	SerializeOptions,
 	Delete,
+	Query,
+	Res,
+	StreamableFile,
+	UploadedFile,
+	ParseFilePipe,
+	MaxFileSizeValidator,
+	FileTypeValidator,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ClassGradesService } from './class_grades.service';
 import { CreateClassGradeDto } from './dto/create-class_grade.dto';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+	ApiBadRequestResponse,
+	ApiOperation,
+	ApiParam,
+	ApiQuery,
+	ApiTags,
+} from '@nestjs/swagger';
 import MongooseClassSerializerInterceptor from 'src/interceptors/mongoose-class-serializer.interceptor';
 import { ClassGrade } from './entities/class_grade.entity';
 import { UpsertGradeColumnsDto } from './dto/update-grade_column.dto';
@@ -27,6 +41,17 @@ import { User } from '@modules/users/entities/user.entity';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'src/decorators/role.decorator';
 import { UpdateManyGradeDto } from './dto/update-many-grade.dto';
+import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
+import { keyBy, merge, map, values } from 'lodash';
+
+export enum EXPORT_FILE_TYPE {
+	CSV = 'csv',
+	XLSX = 'xlsx',
+}
+
+export const EXPORT_FILE_TYPE_ARRAY = Object.values(EXPORT_FILE_TYPE);
+
+export const MAX_IMPORT_FILE_SIZE = 1000 * 1000; // 1MB
 
 @ApiTags('Class Grades')
 @Controller('class-grades')
@@ -88,6 +113,252 @@ export class ClassGradesController {
 		}
 
 		return await this.classGradesService.findOneByClassId(class_id);
+	}
+
+	@ApiParam({
+		name: 'class_id',
+		description: 'Class id',
+	})
+	@ApiQuery({
+		required: false,
+		name: 'file_type',
+		examples: {
+			'Export to csv': {
+				value: 'csv',
+			},
+			'Export to xlsx': {
+				value: 'xlsx',
+			},
+		},
+		description: 'File type for download. Support csv and xlsx',
+	})
+	@Roles(USER_ROLE.TEACHER)
+	@Get(':class_id/template')
+	async downloadStudentListTemplate(
+		@Param('class_id') id: string,
+		@Query('file_type') file_type = EXPORT_FILE_TYPE.CSV,
+		@Res({ passthrough: true }) res: Response,
+		@AuthUser() user: User,
+	): Promise<StreamableFile> {
+		if (!EXPORT_FILE_TYPE_ARRAY.includes(file_type)) {
+			throw new BadRequestException(
+				`Invalid file type. Support [${EXPORT_FILE_TYPE_ARRAY.join(', ')}]`,
+			);
+		}
+		if (!isMongoId(id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		await this.classGradesService.checkClassTeacher(id, user.id);
+
+		const classDetail = await this.classesService.findOne(id);
+		if (!classDetail) {
+			throw new BadRequestException('Class not found');
+		}
+		const classGrade = await this.classGradesService.findOneByClassId(id);
+		const { grade_columns: gradeColumns, grade_rows: gradeRows } = classGrade;
+
+		const data = gradeRows.reduce((acc, row) => {
+			acc.push({
+				student_id: row.student_id,
+				full_name: row.full_name,
+			});
+
+			return acc;
+		}, []);
+
+		const colNames = gradeColumns.reduce((acc, cur) => {
+			acc[cur.name] = cur.name;
+			return acc;
+		}, {});
+
+		const sheetFirstRow = {
+			student_id: 'Student ID',
+			full_name: 'Full name',
+			...colNames,
+		};
+
+		const buffer = await this.classGradesService.createWorkbookStudentList(
+			[sheetFirstRow, ...data],
+			['student_id', 'full_name', ...(Object.values(colNames) as string[])],
+			file_type,
+		);
+
+		if (file_type === EXPORT_FILE_TYPE.CSV) {
+			res.type('text/csv');
+		} else if (file_type === EXPORT_FILE_TYPE.XLSX) {
+			res.type(
+				'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			);
+		}
+		res.attachment(
+			`${this.formatDateExcel()}_import_grade_template.${file_type}`,
+		);
+
+		return new StreamableFile(buffer);
+	}
+
+	formatDateExcel() {
+		const date = new Date();
+		const year = date.toLocaleString('es-ES', {
+			year: 'numeric',
+			timeZone: 'Asia/Bangkok',
+		});
+		const month = date.toLocaleString('es-ES', {
+			month: '2-digit',
+			timeZone: 'Asia/Bangkok',
+		});
+		const day = date.toLocaleString('es-ES', {
+			day: '2-digit',
+			timeZone: 'Asia/Bangkok',
+		});
+		// YYYY_MM_DD
+		return [year, month, day].join('_');
+	}
+
+	@ApiParam({
+		name: 'class_id',
+		description: 'Class id',
+	})
+	@ApiQuery({
+		required: false,
+		name: 'file_type',
+		examples: {
+			'Export to csv': {
+				value: 'csv',
+			},
+			'Export to xlsx': {
+				value: 'xlsx',
+			},
+		},
+		description: 'File type for download. Support csv and xlsx',
+	})
+	@Roles(USER_ROLE.TEACHER)
+	@Get(':class_id/export')
+	async exportGradeBoard(
+		@Param('class_id') id: string,
+		@Query('file_type') file_type = EXPORT_FILE_TYPE.CSV,
+		@Res({ passthrough: true }) res: Response,
+		@AuthUser() user: User,
+	): Promise<StreamableFile> {
+		if (!EXPORT_FILE_TYPE_ARRAY.includes(file_type)) {
+			throw new BadRequestException(
+				`Invalid file type. Support [${EXPORT_FILE_TYPE_ARRAY.join(', ')}]`,
+			);
+		}
+		if (!isMongoId(id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		await this.classGradesService.checkClassTeacher(id, user.id);
+
+		const classDetail = await this.classesService.findOne(id);
+		if (!classDetail) {
+			throw new BadRequestException('Class not found');
+		}
+		const classGrade = await this.classGradesService.findOneByClassId(id);
+		const { grade_columns: gradeColumns, grade_rows: gradeRows } = classGrade;
+
+		const data = gradeRows.reduce((acc, row) => {
+			const newRow = {
+				student_id: row.student_id,
+				full_name: row.full_name,
+			};
+
+			row.grades.forEach((grade) => {
+				const column = gradeColumns.find(
+					(col) => col.id === grade.column.toString(),
+				)?.name;
+				if (column) {
+					newRow[column] = grade.value;
+				}
+			});
+			acc.push(newRow);
+			return acc;
+		}, []);
+
+		const colNames = gradeColumns.reduce((acc, cur) => {
+			acc[cur.name] = cur.name;
+			return acc;
+		}, {});
+
+		const sheetFirstRow = {
+			student_id: 'Student ID',
+			full_name: 'Full name',
+			...colNames,
+		};
+
+		const buffer = await this.classGradesService.createWorkbookStudentList(
+			[
+				sheetFirstRow,
+				...data,
+				{
+					student_id: 'Average',
+					full_name: '',
+					...Object.fromEntries(
+						Object.entries(colNames).map(([key, value], index) => [
+							key,
+							{
+								t: 'n',
+								f: `AVERAGE(${String.fromCharCode(
+									67 + index,
+								)}2:${String.fromCharCode(67 + index)}${data.length + 1})`,
+								F: `${String.fromCharCode(67 + index)}${data.length + 2}`,
+								D: 1,
+							},
+						]),
+					),
+				},
+			],
+			['student_id', 'full_name', ...(Object.values(colNames) as string[])],
+			file_type,
+		);
+
+		if (file_type === EXPORT_FILE_TYPE.CSV) {
+			res.type('text/csv');
+		} else if (file_type === EXPORT_FILE_TYPE.XLSX) {
+			res.type(
+				'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			);
+		}
+
+		res.attachment(
+			`${this.formatDateExcel()}_${classDetail.name
+				.split(' ')
+				.join('_')}_grade_board.${file_type}`,
+		);
+
+		return new StreamableFile(buffer);
+	}
+
+	@ApiBodyWithSingleFile()
+	@ApiBadRequestResponse({})
+	@Post(':class_id/import')
+	async importStudentList(
+		@AuthUser() user: User,
+		@Param('class_id') classId: string,
+		@UploadedFile(
+			new ParseFilePipe({
+				fileIsRequired: true,
+				validators: [
+					new MaxFileSizeValidator({
+						maxSize: MAX_IMPORT_FILE_SIZE,
+						message: `File too large. Max file size ${
+							MAX_IMPORT_FILE_SIZE / 1000
+						}MB`,
+					}),
+					new FileTypeValidator({
+						fileType: /^(?:(?!~\$).)+\.(?:sheet?|csv)$/g,
+					}),
+				],
+			}),
+		)
+		file: Express.Multer.File,
+	): Promise<string> {
+		if (!isMongoId(classId)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		await this.classGradesService.checkClassTeacher(classId, user.id);
+		await this.classGradesService.importGradeTable(classId, file.buffer);
+		return file.filename;
 	}
 
 	@ApiOperation({

@@ -21,7 +21,6 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '@modules/users/users.service';
 import { InvitationSendDto } from './dto/invitation-send.dto';
 import { User } from '@modules/users/entities/user.entity';
-import * as XLSX from 'xlsx';
 import { RemoveUserFromClassDto } from './dto/remove-user-from-class.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -369,18 +368,5 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			};
 		};
 		return await sendEmails();
-	}
-
-	async createWorkbookStudentList(data: any, file_type: XLSX.BookType) {
-		const workbook = XLSX.utils.book_new();
-		const worksheet = XLSX.utils.json_to_sheet(
-			[{ student_id: 'Student ID', full_name: 'Full name' }, ...data],
-			{
-				header: ['student_id', 'full_name'],
-				skipHeader: true,
-			},
-		);
-		XLSX.utils.book_append_sheet(workbook, worksheet, 'Student List');
-		return XLSX.write(workbook, { type: 'buffer', bookType: file_type });
 	}
 }

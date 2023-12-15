@@ -16,6 +16,7 @@ async function bootstrap() {
 	app.enableCors({
 		origin: true,
 		credentials: true,
+		exposedHeaders: ['content-disposition'],
 	});
 	const config_service = app.get(ConfigService);
 	app.useStaticAssets(join(__dirname, './served'));

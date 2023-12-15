@@ -24,6 +24,7 @@ import {
 	ServerEvents,
 	SocketBroadcastParams,
 } from 'src/types/notifications.type';
+import * as XLSX from 'xlsx';
 
 const ObjectId = mongoose.Types.ObjectId;
 
@@ -577,5 +578,30 @@ export class ClassGradesService {
 			}),
 		);
 		return result;
+	}
+
+	async createWorkbookStudentList(
+		data: any[],
+		header: string[],
+		file_type: XLSX.BookType,
+	) {
+		const workbook = XLSX.utils.book_new();
+		const worksheet = XLSX.utils.json_to_sheet(data, {
+			header,
+			skipHeader: true,
+		});
+		XLSX.utils.book_append_sheet(workbook, worksheet, 'Student List');
+		const buffer = XLSX.write(workbook, {
+			type: 'buffer',
+			bookType: file_type,
+		});
+		return buffer;
+	}
+
+	async importGradeTable(classId: string, buffer: Buffer) {
+		const workbook = XLSX.read(buffer, { type: 'buffer' });
+		const sheet_name_list = workbook.SheetNames;
+		const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
+		return data;
 	}
 }
