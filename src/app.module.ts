@@ -17,6 +17,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { NotificationsModule } from '@modules/notifications/notifications.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ClassGradesModule } from './modules/class_grades/class_grades.module';
+import { GradeReviewModule } from './modules/grade_review/grade_review.module';
 
 @Module({
 	imports: [
@@ -122,6 +123,7 @@ import { ClassGradesModule } from './modules/class_grades/class_grades.module';
 		EmailConfirmationModule,
 		NotificationsModule,
 		ClassGradesModule,
+		GradeReviewModule,
 	],
 	controllers: [AppController],
 	providers: [

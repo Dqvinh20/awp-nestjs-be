@@ -17,7 +17,7 @@ import { UpdateGradeDto } from './dto/update-grade.dto';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { User } from '@modules/users/entities/user.entity';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
-import { keyBy, values, merge } from 'lodash';
+import { keyBy, values, merge, pickBy } from 'lodash';
 import { Grade } from './entities/grade.entity';
 import { FinishGradeEvent } from '@modules/shared/events/FinishGrade.event';
 import {
@@ -25,6 +25,8 @@ import {
 	SocketBroadcastParams,
 } from 'src/types/notifications.type';
 import * as XLSX from 'xlsx';
+import readXlsxFile, { Integer } from 'read-excel-file/node';
+import { Schema } from 'read-excel-file';
 
 const ObjectId = mongoose.Types.ObjectId;
 
@@ -292,7 +294,7 @@ export class ClassGradesService {
 				},
 			);
 			await this.updateAllGradesWithNewCols(class_id, result.grade_columns);
-			await this.event_emitter.emitAsync('class_grade.updated', class_id);
+			// await this.event_emitter.emitAsync('class_grade.updated', class_id);
 			return this.findOneByClassId(class_id);
 		} catch (error) {
 			await this.class_grades_model.findOneAndUpdate(
@@ -427,7 +429,11 @@ export class ClassGradesService {
 
 		updateGradeRow.grades =
 			values(merge(keyBy(gradeRow, 'column'), keyBy(grades, 'column'))) ?? [];
-
+		if (!updateGradeRow._id) {
+			delete updateGradeRow._id;
+		} else {
+			updateGradeRow._id = new ObjectId(updateGradeRow._id);
+		}
 		await this.class_grades_model.findOneAndUpdate(
 			{
 				class: new ObjectId(class_id),
@@ -454,7 +460,9 @@ export class ClassGradesService {
 																updateGradeRow.student_id,
 															],
 														},
-														updateGradeRow,
+														{
+															...updateGradeRow,
+														},
 														{},
 													],
 												},
@@ -497,7 +505,7 @@ export class ClassGradesService {
 			},
 			{ new: true },
 		);
-		await this.event_emitter.emitAsync('class_grade.updated', class_id);
+		// await this.event_emitter.emitAsync('class_grade.updated', class_id);
 		return result;
 	}
 
@@ -599,9 +607,107 @@ export class ClassGradesService {
 	}
 
 	async importGradeTable(classId: string, buffer: Buffer) {
-		const workbook = XLSX.read(buffer, { type: 'buffer' });
-		const sheet_name_list = workbook.SheetNames;
-		const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
-		return data;
+		// const workbook = XLSX.read(buffer, { type: 'buffer' });
+		// const sheet_name_list = workbook.SheetNames;
+		// const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
+		// return data;
+		const classGrade = await this.findOneByClassId(classId);
+		if (!classGrade) {
+			throw new BadRequestException('Class grade does not exist');
+		}
+
+		const colSchema = classGrade.grade_columns.reduce(
+			(acc: Schema, col: any) => {
+				acc[col.name] = {
+					prop: col.name,
+					type: Integer,
+					required: true,
+					validate(value: number) {
+						if (value > 10 || value < 0) {
+							throw new Error('Grade must be between 0 and 10');
+						}
+					},
+				};
+				return acc;
+			},
+			{},
+		);
+
+		const schema: Schema = {
+			'Student ID': {
+				prop: 'student_id',
+				type: String,
+				required: true,
+			},
+			'Full name': {
+				prop: 'full_name',
+				type: String,
+				required: true,
+			},
+			...colSchema,
+		};
+
+		const rows = await readXlsxFile(buffer, {
+			schema,
+			transformData(dataExcel: any[]) {
+				const headerRow = dataExcel[0];
+				if (headerRow.length - 2 !== classGrade.grade_columns.length) {
+					throw new Error(
+						'Your file is not valid. The columns in your file does not match the columns in the template file.',
+					);
+				}
+
+				return dataExcel.filter(
+					(rowExcel: any[]) =>
+						rowExcel.filter((columnExcel) => columnExcel !== null).length > 0,
+				);
+			},
+		})
+			.then(({ rows, errors }) => {
+				let duplicateStudentId = rows.reduce((a: any, e: any) => {
+					a[e.student_id] = ++a[e.student_id] || 0;
+					return a;
+				}, {});
+
+				duplicateStudentId = pickBy(
+					duplicateStudentId,
+					(value, key) => value > 1,
+				);
+				const duplicateStudentIdKeys = Object.keys(duplicateStudentId);
+				if (duplicateStudentIdKeys.length !== 0) {
+					throw new Error(
+						`Duplicate Student ID: <strong class="text-red-500">${duplicateStudentIdKeys.join(
+							', ',
+						)}</strong>. Please check again!`,
+					);
+				}
+
+				const errorsKeys = keyBy(errors, 'error');
+				if (errors.length === 0) {
+					return rows;
+				}
+
+				const details = () => {
+					if (errorsKeys['Grade must be between 0 and 10']) {
+						return 'Grade must be between 0 and 10';
+					}
+					if (
+						errorsKeys.invalid &&
+						errorsKeys.invalid.reason === 'not_a_number'
+					) {
+						return `Grade must be a number at row ${errorsKeys.invalid.row} in column ${errorsKeys.invalid.column}`;
+					}
+
+					if (errorsKeys.required) {
+						return `Field is missing at row ${errorsKeys.required.row} in column '${errorsKeys.required.column}'`;
+					}
+				};
+				throw new Error(details());
+			})
+			.catch((readExcelError: Error) => {
+				throw new BadRequestException(readExcelError.message);
+			});
+		await this.updateManyGrades(classId, rows as UpdateGradeDto[]);
+		return this.findOneByClassId(classId);
 	}
 }
