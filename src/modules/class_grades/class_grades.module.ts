@@ -20,5 +20,6 @@ import { ClassesModule } from '@modules/classes/classes.module';
 	],
 	controllers: [ClassGradesController],
 	providers: [ClassGradesService],
+	exports: [ClassGradesService],
 })
 export class ClassGradesModule {}
