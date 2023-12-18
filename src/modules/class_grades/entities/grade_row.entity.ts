@@ -29,6 +29,7 @@ export class GradeRow {
 		type: String,
 		min: 0,
 		max: 100,
+		default: '',
 	})
 	full_name: string;
 

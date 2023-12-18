@@ -18,6 +18,7 @@ import {
 	ParseFilePipe,
 	MaxFileSizeValidator,
 	FileTypeValidator,
+	NotFoundException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ClassGradesService } from './class_grades.service';
@@ -42,7 +43,6 @@ import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'src/decorators/role.decorator';
 import { UpdateManyGradeDto } from './dto/update-many-grade.dto';
 import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
-import { keyBy, merge, map, values } from 'lodash';
 
 export enum EXPORT_FILE_TYPE {
 	CSV = 'csv',
@@ -192,6 +192,93 @@ export class ClassGradesController {
 		}
 		res.attachment(
 			`${this.formatDateExcel()}_import_grade_template.${file_type}`,
+		);
+
+		return new StreamableFile(buffer);
+	}
+
+	@ApiParam({
+		name: 'class_id',
+		description: 'Class id',
+	})
+	@ApiQuery({
+		required: false,
+		name: 'file_type',
+		examples: {
+			'Export to csv': {
+				value: 'csv',
+			},
+			'Export to xlsx': {
+				value: 'xlsx',
+			},
+		},
+		description: 'File type for download. Support csv and xlsx',
+	})
+	@Roles(USER_ROLE.TEACHER)
+	@Get(':class_id/template/:column_id')
+	async downloadOneColumnTemplate(
+		@Param('class_id') class_id: string,
+		@Param('column_id') column_id: string,
+		@Query('file_type') file_type = EXPORT_FILE_TYPE.CSV,
+		@Res({ passthrough: true }) res: Response,
+		@AuthUser() user: User,
+	): Promise<StreamableFile> {
+		if (!EXPORT_FILE_TYPE_ARRAY.includes(file_type)) {
+			throw new BadRequestException(
+				`Invalid file type. Support [${EXPORT_FILE_TYPE_ARRAY.join(', ')}]`,
+			);
+		}
+		if (!isMongoId(class_id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		if (!isMongoId(column_id)) {
+			throw new BadRequestException('Invalid class id');
+		}
+
+		await this.classGradesService.checkClassTeacher(class_id, user.id);
+		const classDetail = await this.classesService.findOne(class_id);
+		if (!classDetail) {
+			throw new NotFoundException('Class not found');
+		}
+
+		const classGrade = await this.classGradesService.findOneByClassId(class_id);
+		const { grade_columns: gradeColumns, grade_rows: gradeRows } = classGrade;
+		const column = gradeColumns.find((col) => col.id === column_id);
+		if (!column) {
+			throw new NotFoundException('Column not found');
+		}
+
+		const data = gradeRows.reduce((acc, row) => {
+			acc.push({
+				student_id: row.student_id,
+				grade:
+					row.grades.find((grade) => grade.column.toString() === column_id)
+						?.value ?? 0,
+			});
+
+			return acc;
+		}, []);
+
+		const sheetFirstRow = {
+			student_id: 'Student ID',
+			grade: 'Grade',
+		};
+
+		const buffer = await this.classGradesService.createWorkbookStudentList(
+			[sheetFirstRow, ...data],
+			['student_id', 'grade'],
+			file_type,
+		);
+
+		if (file_type === EXPORT_FILE_TYPE.CSV) {
+			res.type('text/csv');
+		} else if (file_type === EXPORT_FILE_TYPE.XLSX) {
+			res.type(
+				'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+			);
+		}
+		res.attachment(
+			`${this.formatDateExcel()}_import_one_column_template.${file_type}`,
 		);
 
 		return new StreamableFile(buffer);
@@ -352,13 +439,53 @@ export class ClassGradesController {
 			}),
 		)
 		file: Express.Multer.File,
-	): Promise<string> {
+	): Promise<boolean> {
 		if (!isMongoId(classId)) {
 			throw new BadRequestException('Invalid class id');
 		}
 		await this.classGradesService.checkClassTeacher(classId, user.id);
 		await this.classGradesService.importGradeTable(classId, file.buffer);
-		return file.filename;
+		return true;
+	}
+
+	@ApiBodyWithSingleFile()
+	@ApiBadRequestResponse({})
+	@Post(':class_id/import/:column_id')
+	async importOneColumn(
+		@AuthUser() user: User,
+		@Param('class_id') classId: string,
+		@Param('column_id') column_id: string,
+		@UploadedFile(
+			new ParseFilePipe({
+				fileIsRequired: true,
+				validators: [
+					new MaxFileSizeValidator({
+						maxSize: MAX_IMPORT_FILE_SIZE,
+						message: `File too large. Max file size ${
+							MAX_IMPORT_FILE_SIZE / 1000
+						}MB`,
+					}),
+					new FileTypeValidator({
+						fileType: /^(?:(?!~\$).)+\.(?:sheet?|csv)$/g,
+					}),
+				],
+			}),
+		)
+		file: Express.Multer.File,
+	): Promise<boolean> {
+		if (!isMongoId(classId)) {
+			throw new BadRequestException('Invalid class id');
+		}
+		if (!isMongoId(column_id)) {
+			throw new BadRequestException('Invalid column id');
+		}
+		await this.classGradesService.checkClassTeacher(classId, user.id);
+		await this.classGradesService.importOneColumn(
+			classId,
+			column_id,
+			file.buffer,
+		);
+		return true;
 	}
 
 	@ApiOperation({

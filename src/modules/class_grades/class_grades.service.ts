@@ -607,10 +607,6 @@ export class ClassGradesService {
 	}
 
 	async importGradeTable(classId: string, buffer: Buffer) {
-		// const workbook = XLSX.read(buffer, { type: 'buffer' });
-		// const sheet_name_list = workbook.SheetNames;
-		// const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheet_name_list[0]]);
-		// return data;
 		const classGrade = await this.findOneByClassId(classId);
 		if (!classGrade) {
 			throw new BadRequestException('Class grade does not exist');
@@ -708,6 +704,118 @@ export class ClassGradesService {
 				throw new BadRequestException(readExcelError.message);
 			});
 		await this.updateManyGrades(classId, rows as UpdateGradeDto[]);
+		return this.findOneByClassId(classId);
+	}
+
+	async importOneColumn(classId: string, columnId: string, buffer: Buffer) {
+		const classGrade = await this.findOneByClassId(classId);
+		if (!classGrade) {
+			throw new NotFoundException('Class grade not found');
+		}
+		const { grade_columns } = classGrade;
+		const foundColumn = grade_columns.find(
+			(col) => col._id.toString() === columnId,
+		);
+		if (!foundColumn) {
+			throw new NotFoundException('Column not found');
+		}
+		const schema: Schema = {
+			'Student ID': {
+				prop: 'student_id',
+				type: String,
+				required: true,
+				validate(value: string) {
+					if (value.length > 10 || value.length < 0) {
+						throw new Error('Student ID must be between 0 and 10 characters');
+					}
+				},
+			},
+			Grade: {
+				prop: 'grade',
+				type: Integer,
+				required: true,
+				validate(value: number) {
+					if (value > 10 || value < 0) {
+						throw new Error('Grade must be between 0 and 10');
+					}
+				},
+			},
+		};
+
+		const rows = await readXlsxFile<{
+			student_id: string;
+			grade: number;
+		}>(buffer, {
+			schema,
+			transformData(dataExcel: any[]) {
+				return dataExcel.filter(
+					(rowExcel: any[]) =>
+						rowExcel.filter((columnExcel) => columnExcel !== null).length > 0,
+				);
+			},
+		})
+			.then(({ rows, errors }) => {
+				let duplicateStudentId = rows.reduce((a: any, e: any) => {
+					a[e.student_id] = ++a[e.student_id] || 0;
+					return a;
+				}, {});
+
+				duplicateStudentId = pickBy(
+					duplicateStudentId,
+					(value, key) => value > 1,
+				);
+				const duplicateStudentIdKeys = Object.keys(duplicateStudentId);
+				if (duplicateStudentIdKeys.length !== 0) {
+					throw new Error(
+						`Duplicate Student ID: <strong class="text-red-500">${duplicateStudentIdKeys.join(
+							', ',
+						)}</strong>. Please check again!`,
+					);
+				}
+
+				const errorsKeys = keyBy(errors, 'error');
+				if (errors.length === 0) {
+					return rows;
+				}
+
+				const details = () => {
+					if (errorsKeys['Grade must be between 0 and 10']) {
+						return 'Grade must be between 0 and 10';
+					}
+
+					if (errorsKeys['Student ID must be between 0 and 10 characters']) {
+						return 'Student ID must be between 0 and 10 characters';
+					}
+
+					if (
+						errorsKeys.invalid &&
+						errorsKeys.invalid.reason === 'not_a_number'
+					) {
+						return `Grade must be a number at row ${errorsKeys.invalid.row} in column ${errorsKeys.invalid.column}`;
+					}
+
+					if (errorsKeys.required) {
+						return `Field is missing at row ${errorsKeys.required.row} in column '${errorsKeys.required.column}'`;
+					}
+				};
+
+				throw new Error(details());
+			})
+			.catch((readExcelError: Error) => {
+				throw new BadRequestException(readExcelError.message);
+			});
+
+		const updatedGradeRows = rows.map<UpdateGradeDto>((row) => {
+			return {
+				student_id: row.student_id,
+				[foundColumn.name]: row.grade,
+			};
+		});
+		if (updatedGradeRows.length === 0) {
+			throw new NotFoundException('No data found');
+		}
+
+		await this.updateManyGrades(classId, updatedGradeRows);
 		return this.findOneByClassId(classId);
 	}
 }
