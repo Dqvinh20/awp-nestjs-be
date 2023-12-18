@@ -8,6 +8,7 @@ import {
 import { MongooseModule } from '@nestjs/mongoose';
 import { ClassGradesModule } from '@modules/class_grades/class_grades.module';
 import { ClassesModule } from '@modules/classes/classes.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
 	imports: [
@@ -16,6 +17,7 @@ import { ClassesModule } from '@modules/classes/classes.module';
 		]),
 		ClassesModule,
 		ClassGradesModule,
+		EventEmitterModule,
 	],
 	controllers: [GradeReviewController],
 	providers: [GradeReviewService],

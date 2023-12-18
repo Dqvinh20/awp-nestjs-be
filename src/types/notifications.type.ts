@@ -29,6 +29,12 @@ enum ClassGradeEvent {
 	GRADE_UNFINISHED = 'grade.unfinished',
 }
 
+enum GradeReviewEvent {
+	GRADE_REVIEW_CREATED = 'grade_review.created',
+	GRADE_REVIEW_COMMENT = 'grade_review.comment',
+	GRADE_REVIEW_FINISHED = 'grade_review.finished',
+}
+
 enum SocketEvent {
 	SOCKET_BROADCAST = 'notification.broadcast',
 }
@@ -36,9 +42,10 @@ enum SocketEvent {
 export const ServerEvents = {
 	...ClassGradeEvent,
 	...SocketEvent,
+	...GradeReviewEvent,
 };
 
-export type ServerEvents = ClassGradeEvent | SocketEvent;
+export type ServerEvents = ClassGradeEvent | SocketEvent | GradeReviewEvent;
 
 export interface SocketBroadcastParams {
 	room: string | string[];

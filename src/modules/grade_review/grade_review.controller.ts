@@ -36,10 +36,14 @@ export class GradeReviewController {
 
 	@Roles(USER_ROLE.STUDENT)
 	@Post()
-	create(@AuthUser() user, @Body() createGradeReviewDto: CreateGradeReviewDto) {
+	async create(
+		@AuthUser() user,
+		@Body() createGradeReviewDto: CreateGradeReviewDto,
+	) {
 		createGradeReviewDto.request_student = user.id;
 		createGradeReviewDto.request_student_id = user.student_id;
-		return this.gradeReviewService.create(createGradeReviewDto);
+		const result = this.gradeReviewService.create(createGradeReviewDto);
+		return result;
 	}
 
 	@Roles(USER_ROLE.STUDENT, USER_ROLE.TEACHER)
@@ -97,7 +101,7 @@ export class GradeReviewController {
 		const classID = gradeReview.class.toString();
 		await this.class_grades_service.checkClassStudentOrTeacher(classID, user);
 		createCommentDto.sender = user.id;
-		return this.gradeReviewService.addNewComment(id, createCommentDto);
+		return this.gradeReviewService.addNewComment(id, createCommentDto, user);
 	}
 
 	@Roles(USER_ROLE.TEACHER)
@@ -115,7 +119,7 @@ export class GradeReviewController {
 			gradeReview.class.toString(),
 			user,
 		);
-		return this.gradeReviewService.markFinished(id, body);
+		return this.gradeReviewService.markFinished(id, body, user);
 	}
 
 	@Roles(USER_ROLE.TEACHER)

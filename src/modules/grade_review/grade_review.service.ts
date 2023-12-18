@@ -21,6 +21,11 @@ import { ClassGradesService } from '@modules/class_grades/class_grades.service';
 import { ClassGrade } from '@modules/class_grades/entities/class_grade.entity';
 import { ClassesService } from '@modules/classes/classes.service';
 import { FinishGradeReviewDto } from './dto/finish-grade_review.dto';
+import { CreateNotificationDto } from '@modules/notifications/dto/create-notification.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ServerEvents } from 'src/types/notifications.type';
+import { getUserFullNameOrEmail } from '@modules/shared/helper';
+import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 
 const ObjectId = mongoose.Types.ObjectId;
 
@@ -31,6 +36,7 @@ export class GradeReviewService {
 		private readonly grade_review_model: Model<GradeReview>,
 		private readonly classes_service: ClassesService,
 		private readonly class_grades_service: ClassGradesService,
+		private readonly event_emitter: EventEmitter2,
 	) {}
 
 	async checkBeforeCreate(
@@ -91,11 +97,39 @@ export class GradeReviewService {
 			);
 		}
 
-		return await this.grade_review_model.create({
-			...createGradeReviewDto,
-			column_name,
-			current_grade: current_grade ?? 0,
-		});
+		try {
+			const result = await this.grade_review_model.create({
+				...createGradeReviewDto,
+				column_name,
+				current_grade: current_grade ?? 0,
+			});
+
+			const classDetail = await this.classes_service.findOne(
+				createGradeReviewDto.class,
+			);
+			if (!classDetail) {
+				throw new NotFoundException('Class not found');
+			}
+			await this.event_emitter.emitAsync(
+				ServerEvents.GRADE_REVIEW_CREATED,
+				ServerEvents.GRADE_REVIEW_CREATED,
+				{
+					title: 'New grade review request',
+					message: `You've got a new grade review request from '<strong>${createGradeReviewDto.request_student_id}</strong>'`,
+					ref_url: `/class/${createGradeReviewDto.class}/grade-review?review=${result._id}`,
+					class: createGradeReviewDto.class,
+					receivers: [
+						classDetail.owner._id.toString(),
+						...classDetail.teachers.map((t) => t._id.toString()),
+					],
+					sender: createGradeReviewDto.request_student,
+				} as CreateNotificationDto,
+			);
+
+			return result;
+		} catch (e) {
+			throw new BadRequestException(e.message);
+		}
 	}
 
 	async findAllByTeacher(teacher: User, class_id?: string) {
@@ -318,8 +352,12 @@ export class GradeReviewService {
 		});
 	}
 
-	async addNewComment(id: string, newCommentDto: CreateCommentDto) {
-		return this.grade_review_model.findByIdAndUpdate(
+	async addNewComment(
+		id: string,
+		newCommentDto: CreateCommentDto,
+		update_teacher: User,
+	) {
+		const result = this.grade_review_model.findByIdAndUpdate(
 			id,
 			{
 				$push: {
@@ -333,9 +371,34 @@ export class GradeReviewService {
 				new: true,
 			},
 		);
+
+		if ((update_teacher.role as unknown as USER_ROLE) === USER_ROLE.TEACHER) {
+			const gradeReview = await this.grade_review_model.findById(id);
+			await this.event_emitter.emitAsync(
+				ServerEvents.GRADE_REVIEW_COMMENT,
+				ServerEvents.GRADE_REVIEW_COMMENT,
+				{
+					title: 'New Comment',
+					message: `Teacher <strong>${getUserFullNameOrEmail(
+						update_teacher,
+					)}</strong> has replied you in grade review request for column </strong>${
+						gradeReview.column_name
+					}</strong>. Click for more detail.`,
+					ref_url: `/class/${gradeReview.class.toString()}/grade-review?review=${id}`,
+					class: gradeReview.class.toString(),
+					receivers: [gradeReview.request_student.toString()],
+					sender: newCommentDto.sender,
+				} as CreateNotificationDto,
+			);
+		}
+		return result;
 	}
 
-	async markFinished(id: string, finishGradeReviewDto: FinishGradeReviewDto) {
+	async markFinished(
+		id: string,
+		finishGradeReviewDto: FinishGradeReviewDto,
+		update_teacher: User,
+	) {
 		try {
 			const gradeReview = await this.grade_review_model.findById(id);
 			if (!gradeReview) {
@@ -376,6 +439,20 @@ export class GradeReviewService {
 				{
 					new: true,
 				},
+			);
+			await this.event_emitter.emitAsync(
+				ServerEvents.GRADE_REVIEW_FINISHED,
+				ServerEvents.GRADE_REVIEW_FINISHED,
+				{
+					title: 'Grade Review Finished',
+					message: `Teacher <strong>${getUserFullNameOrEmail(
+						update_teacher,
+					)}</strong> has finished the grade review of you. Click for more detail.`,
+					ref_url: `/class/${gradeReview.class.toString()}/grade-review?review=${id}`,
+					class: gradeReview.class.toString(),
+					receivers: [gradeReview.request_student],
+					sender: update_teacher._id.toString(),
+				} as CreateNotificationDto,
 			);
 			return true;
 		} catch (error) {

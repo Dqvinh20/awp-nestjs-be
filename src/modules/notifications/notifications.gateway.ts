@@ -72,6 +72,18 @@ export class NotificationsGateway
 		return socket.leave(roomId);
 	}
 
+	@OnEvent(ServerEvents.GRADE_REVIEW_COMMENT, { async: true })
+	@OnEvent(ServerEvents.GRADE_REVIEW_FINISHED, { async: true })
+	@OnEvent(ServerEvents.GRADE_REVIEW_CREATED, { async: true })
+	async handleCreateNotification(event: string, data: CreateNotificationDto) {
+		const notif = await this.notifications_service.create(data);
+		await this.broadcast({
+			room: [data.class, ...data.receivers.map((id: any) => id.toString())],
+			event,
+			data: notif,
+		});
+	}
+
 	@OnEvent(ServerEvents.GRADE_FINISHED, { async: true })
 	async handleCreateNotificationToClass(
 		event: string,
