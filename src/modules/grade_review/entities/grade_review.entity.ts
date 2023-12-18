@@ -36,6 +36,12 @@ export class GradeReview extends BaseEntity {
 	@Prop({
 		required: true,
 		type: String,
+	})
+	column_name: string;
+
+	@Prop({
+		required: true,
+		type: String,
 		maxlength: 500,
 		default: '',
 	})
@@ -49,6 +55,24 @@ export class GradeReview extends BaseEntity {
 		default: 0,
 	})
 	expected_grade: number;
+
+	@Prop({
+		required: true,
+		type: Number,
+		max: 10,
+		min: 0,
+		default: 0,
+	})
+	current_grade: number;
+
+	@Prop({
+		required: true,
+		type: Number,
+		max: 10,
+		min: 0,
+		default: 0,
+	})
+	updated_grade: number;
 
 	@Prop({
 		required: true,

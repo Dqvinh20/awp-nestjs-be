@@ -27,6 +27,8 @@ export class CreateGradeReviewDto {
 	@IsMongoId()
 	column: string;
 
+	column_name: string;
+
 	@IsNotEmpty()
 	@IsString()
 	@MaxLength(500)
@@ -37,6 +39,8 @@ export class CreateGradeReviewDto {
 	@Max(10)
 	@Min(0)
 	expected_grade: number;
+
+	current_grade: number;
 
 	request_student: string;
 

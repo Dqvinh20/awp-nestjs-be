@@ -23,6 +23,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/decorators/roles.decorator';
 import { ClassGradesService } from '@modules/class_grades/class_grades.service';
 import { isMongoId } from 'class-validator';
+import { FinishGradeReviewDto } from './dto/finish-grade_review.dto';
 
 @ApiTags('grade-review')
 @NeedAuth()
@@ -69,11 +70,15 @@ export class GradeReviewController {
 	}
 
 	@Get(':id')
-	findOne(@Param('id') id: string) {
+	async findOne(@Param('id') id: string) {
 		if (!isMongoId(id)) {
 			throw new BadRequestException('Invalid id');
 		}
-		return this.gradeReviewService.findOne(id);
+		const gradeReview = await this.gradeReviewService.findOne(id);
+		if (!gradeReview) {
+			throw new BadRequestException('Grade review not found');
+		}
+		return gradeReview;
 	}
 
 	@Post(':id/comment')
@@ -85,7 +90,11 @@ export class GradeReviewController {
 		if (!isMongoId(id)) {
 			throw new BadRequestException('Invalid id');
 		}
-		const classID = (await this.findOne(id)).class.toString();
+		const gradeReview = await this.gradeReviewService.findOne(id);
+		if (!gradeReview) {
+			throw new BadRequestException('Grade review not found');
+		}
+		const classID = gradeReview.class.toString();
 		await this.class_grades_service.checkClassStudentOrTeacher(classID, user);
 		createCommentDto.sender = user.id;
 		return this.gradeReviewService.addNewComment(id, createCommentDto);
@@ -93,22 +102,38 @@ export class GradeReviewController {
 
 	@Roles(USER_ROLE.TEACHER)
 	@Patch(':id/finish')
-	markFinished(@Param('id') id: string) {
-		if (!isMongoId(id)) {
-			throw new BadRequestException('Invalid id');
-		}
-		return this.gradeReviewService.markFinished(id);
-	}
-
-	@Roles(USER_ROLE.TEACHER)
-	@Patch(':id')
-	update(
+	async markFinished(
 		@Param('id') id: string,
-		@Body() updateGradeReviewDto: UpdateGradeReviewDto,
+		@AuthUser() user,
+		@Body() body: FinishGradeReviewDto,
 	) {
 		if (!isMongoId(id)) {
 			throw new BadRequestException('Invalid id');
 		}
+		const gradeReview = await this.gradeReviewService.findOne(id);
+		await this.class_grades_service.checkClassStudentOrTeacher(
+			gradeReview.class.toString(),
+			user,
+		);
+		return this.gradeReviewService.markFinished(id, body);
+	}
+
+	@Roles(USER_ROLE.TEACHER)
+	@Patch(':id')
+	async update(
+		@Param('id') id: string,
+		@Body() updateGradeReviewDto: UpdateGradeReviewDto,
+		@AuthUser() user,
+	) {
+		if (!isMongoId(id)) {
+			throw new BadRequestException('Invalid id');
+		}
+		const gradeReview = await this.gradeReviewService.findOne(id);
+		await this.class_grades_service.checkClassStudentOrTeacher(
+			gradeReview.class.toString(),
+			user,
+		);
+
 		return this.gradeReviewService.update(id, updateGradeReviewDto);
 	}
 

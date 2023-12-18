@@ -11,7 +11,7 @@ export class UpdateGradeDto {
 
 	@IsOptional()
 	@IsString()
-	full_name!: string;
+	full_name?: string;
 
 	[key: string]: any;
 }
