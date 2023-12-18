@@ -117,7 +117,6 @@ export class GradeReviewService {
 					title: 'New grade review request',
 					message: `You've got a new grade review request from '<strong>${createGradeReviewDto.request_student_id}</strong>'`,
 					ref_url: `/class/${createGradeReviewDto.class}/grade-review?review=${result._id}`,
-					class: createGradeReviewDto.class,
 					receivers: [
 						classDetail.owner._id.toString(),
 						...classDetail.teachers.map((t) => t._id.toString()),
@@ -355,7 +354,7 @@ export class GradeReviewService {
 	async addNewComment(
 		id: string,
 		newCommentDto: CreateCommentDto,
-		update_teacher: User,
+		sender: User,
 	) {
 		const result = this.grade_review_model.findByIdAndUpdate(
 			id,
@@ -372,7 +371,7 @@ export class GradeReviewService {
 			},
 		);
 
-		if ((update_teacher.role as unknown as USER_ROLE) === USER_ROLE.TEACHER) {
+		if ((sender.role as unknown as USER_ROLE) === USER_ROLE.TEACHER) {
 			const gradeReview = await this.grade_review_model.findById(id);
 			await this.event_emitter.emitAsync(
 				ServerEvents.GRADE_REVIEW_COMMENT,
@@ -380,12 +379,11 @@ export class GradeReviewService {
 				{
 					title: 'New Comment',
 					message: `Teacher <strong>${getUserFullNameOrEmail(
-						update_teacher,
+						sender,
 					)}</strong> has replied you in grade review request for column </strong>${
 						gradeReview.column_name
 					}</strong>. Click for more detail.`,
 					ref_url: `/class/${gradeReview.class.toString()}/grade-review?review=${id}`,
-					class: gradeReview.class.toString(),
 					receivers: [gradeReview.request_student.toString()],
 					sender: newCommentDto.sender,
 				} as CreateNotificationDto,
@@ -449,7 +447,6 @@ export class GradeReviewService {
 						update_teacher,
 					)}</strong> has finished the grade review of you. Click for more detail.`,
 					ref_url: `/class/${gradeReview.class.toString()}/grade-review?review=${id}`,
-					class: gradeReview.class.toString(),
 					receivers: [gradeReview.request_student],
 					sender: update_teacher._id.toString(),
 				} as CreateNotificationDto,
