@@ -80,6 +80,11 @@ export class Class extends BaseEntity {
 	isJoinable: boolean;
 
 	@Prop({
+		default: true,
+	})
+	isActive: boolean;
+
+	@Prop({
 		required: true,
 		type: mongoose.Schema.Types.ObjectId,
 		ref: User.name,

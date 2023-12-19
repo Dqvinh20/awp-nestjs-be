@@ -147,6 +147,7 @@ export class ClassesController {
 			default:
 				break;
 		}
+
 		body.query = { ...query };
 		return this.classesService.findWithPaginate(body);
 	}
@@ -459,9 +460,16 @@ export class ClassesController {
 		},
 	})
 	@Get(':id')
-	async findOne(@Param('id') id: string, @AuthUser() user: User) {
+	async findOne(
+		@Param('id') id: string,
+		@AuthUser() user: User,
+		@Role() userRole,
+	) {
 		const classDetail = await this.classesService.findOne(id);
-		if (user.email !== classDetail.owner.email) {
+		if (
+			userRole !== USER_ROLE.ADMIN &&
+			user.email !== classDetail.owner.email
+		) {
 			const { teachers, students } = classDetail;
 			if (teachers.map((teacher) => teacher.email).includes(user.email))
 				return classDetail;
@@ -495,6 +503,52 @@ export class ClassesController {
 	@Roles(USER_ROLE.ADMIN, USER_ROLE.TEACHER)
 	update(@Param('id') id: string, @Body() updateClassDto: UpdateClassDto) {
 		return this.classesService.update(id, updateClassDto);
+	}
+
+	@ApiOperation({
+		summary: 'Active a class',
+		description: 'Only admin can active a class',
+	})
+	@ApiForbiddenResponse({
+		description: 'Permission denied',
+		schema: {
+			type: 'object',
+			example: {
+				statusCode: 403,
+				message: "User doesn't have permission to access",
+				error: 'Forbidden',
+			},
+		},
+	})
+	@Patch(':id/active')
+	@Roles(USER_ROLE.ADMIN)
+	activeClass(@Param('id') id: string) {
+		return this.classesService.update(id, {
+			isActive: true,
+		});
+	}
+
+	@ApiOperation({
+		summary: 'Inactive class',
+		description: 'Only admin can inactive a class',
+	})
+	@ApiForbiddenResponse({
+		description: 'Permission denied',
+		schema: {
+			type: 'object',
+			example: {
+				statusCode: 403,
+				message: "User doesn't have permission to access",
+				error: 'Forbidden',
+			},
+		},
+	})
+	@Patch(':id/inactive')
+	@Roles(USER_ROLE.ADMIN)
+	inactiveClass(@Param('id') id: string) {
+		return this.classesService.update(id, {
+			isActive: false,
+		});
 	}
 
 	@ApiOperation({

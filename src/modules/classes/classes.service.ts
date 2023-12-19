@@ -157,7 +157,7 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		return result;
 	}
 
-	update(id: string, updateClassDto: UpdateClassDto) {
+	update(id: string, updateClassDto: any) {
 		return this.classes_repo.update(id, updateClassDto);
 	}
 
