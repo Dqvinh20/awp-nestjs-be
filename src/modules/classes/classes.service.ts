@@ -202,9 +202,6 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 	checkBeforeJoin(classDetail: Class, authUser: User) {
 		if (!classDetail) throw new BadRequestException('Class not found');
 
-		if (!classDetail.isJoinable)
-			throw new BadRequestException('Class is closed for joining');
-
 		const isAlreadyTeacher = classDetail.teachers
 			.map((teacher) => teacher.email)
 			.includes(authUser.email);
@@ -225,6 +222,11 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 		const classDetail: Class = await this.findOneByCondition({
 			code: classCode,
 		});
+
+		if (!classDetail.isJoinable)
+			throw new BadRequestException(
+				'Class is closed for joining by code. Please contact class owner.',
+			);
 
 		if (classDetail.owner.id === authUser.id) {
 			throw new BadRequestException('Owner can not join class');
@@ -303,9 +305,9 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 			code,
 		});
 		const { owner, teachers, students, isJoinable } = classDetail;
-		if (isJoinable === false) {
-			throw new BadRequestException('Class is closed for joining');
-		}
+		// if (isJoinable === false) {
+		// 	throw new BadRequestException('Class is closed for joining');
+		// }
 
 		const normailizedEmails = invited_emails.filter(
 			(email) => owner.email !== email,
