@@ -206,19 +206,23 @@ export class ClassGradesService {
 		const result = await this.class_grades_model.findOne(
 			{
 				class: class_id,
-				'grade_rows.student_id': student_id,
 			},
 			{
 				_id: 1,
 				class: 1,
 				grade_columns: 1,
-				'grade_rows.$': 1,
+				grade_rows: 1,
 				isFinished: 1,
 				updated_at: 1,
 				created_at: 1,
 			},
 		);
-
+		if (!result) {
+			throw new NotFoundException('Class grade not found');
+		}
+		result.grade_rows = result.grade_rows.filter(
+			(row) => row.student_id === student_id,
+		);
 		return result;
 	}
 

@@ -162,6 +162,13 @@ export class UsersController {
 			throw new BadRequestException('Student id can not be empty');
 		}
 
+		const foundStudent = await this.users_service.findOneByCondition({
+			student_id: update_user_dto.student_id,
+		});
+		if (foundStudent && foundStudent._id.toString() !== id) {
+			throw new BadRequestException('Student id already taken');
+		}
+
 		return this.users_service
 			.update(id, update_user_dto)
 			.then((user: UserDocument) => user.populate('role'));
