@@ -9,8 +9,10 @@ import {
 	Logger,
 	NotFoundException,
 	Post,
+	Query,
 	Req,
 	Res,
+	UnauthorizedException,
 	UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -37,6 +39,7 @@ import { FacebookOauthGuard } from './guards/facebook-oauth.guard';
 import { AuthUser } from 'src/decorators/auth_user.decorator';
 import { FinishSignUpDto } from './dto/finish-sign-up.dto';
 import { User } from '@modules/users/entities/user.entity';
+import { UserRolesService } from '@modules/user-roles/user-roles.service';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -45,6 +48,7 @@ export class AuthController {
 	private readonly logger = new Logger(AuthController.name);
 	constructor(
 		private readonly auth_service: AuthService,
+		private readonly user_roles_service: UserRolesService,
 		private readonly emailConfirmationService: EmailConfirmationService,
 		private readonly configService: ConfigService,
 	) {}
@@ -185,8 +189,18 @@ export class AuthController {
 			},
 		},
 	})
-	async signIn(@Req() request: RequestWithUser) {
+	async signIn(
+		@Req() request: RequestWithUser,
+		@Query('isAdmin') isAdmin = false,
+	) {
 		const { user } = request;
+		if (isAdmin) {
+			const role = await this.user_roles_service.findOne(user.role.toString());
+			if ((role.name as unknown as USER_ROLE) !== USER_ROLE.ADMIN) {
+				throw new UnauthorizedException('You are not admin!!');
+			}
+		}
+
 		const data = await this.auth_service.signIn(user._id.toString());
 
 		// Set refresh token to cookie
