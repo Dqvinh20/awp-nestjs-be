@@ -91,9 +91,13 @@ export class UsersController {
 	@Get('search')
 	findUserEmail(
 		@Query('email') email,
-		@Query('role') role: USER_ROLE.TEACHER | USER_ROLE.STUDENT,
+		@Role() userRole,
+		@Query('role') role?: USER_ROLE.TEACHER | USER_ROLE.STUDENT,
 	) {
-		return this.users_service.findAllEmails(email, role);
+		if (userRole === USER_ROLE.ADMIN) {
+			return this.users_service.findAllEmails(email, role);
+		}
+		return this.users_service.findAllEmailsByRole(email, role);
 	}
 
 	@ApiOperation({

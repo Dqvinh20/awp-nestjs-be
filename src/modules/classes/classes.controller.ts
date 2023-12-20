@@ -121,7 +121,7 @@ export class ClassesController {
 				intersection(teachers, students).length !== 0
 			) {
 				throw new BadRequestException(
-					'Teachers and students can not have same user',
+					'Teachers and students can not have the same user',
 				);
 			}
 		}

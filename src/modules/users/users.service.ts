@@ -20,6 +20,7 @@ import {
 	hashPassword,
 } from '@modules/shared/helper/password.helper';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { FilterQuery } from 'mongoose';
 
 @Injectable()
 export class UsersService extends BaseServiceAbstract<User> {
@@ -63,32 +64,65 @@ export class UsersService extends BaseServiceAbstract<User> {
 	async findAllEmails(
 		email = '',
 		role: USER_ROLE.TEACHER | USER_ROLE.STUDENT = USER_ROLE.STUDENT,
+	) {
+		const dbRole = await this.user_roles_service.findOneByCondition({
+			name: role,
+		});
+
+		const query: FilterQuery<User> = {
+			role: dbRole,
+		};
+		if (email.length !== 0) {
+			query.$or = [
+				{
+					$text: {
+						$search: email,
+					},
+				},
+				{
+					email: {
+						$regex: new RegExp(email, 'i'),
+					},
+				},
+			];
+		}
+
+		return await this.users_repository.findAll(query, {
+			projection: { _id: 1, email: 1, role: 0 },
+			populate: 'role',
+		});
+	}
+
+	async findAllEmailsByRole(
+		email = '',
+		role: USER_ROLE.TEACHER | USER_ROLE.STUDENT = USER_ROLE.STUDENT,
 	): Promise<{ count: number; emails: string[] }> {
 		const dbRole = await this.user_roles_service.findOneByCondition({
 			name: role,
 		});
 
-		const { count, items } = await this.users_repository.findAll(
-			{
-				$or: [
-					{
-						$text: {
-							$search: email,
-						},
+		const query: FilterQuery<User> = {
+			role: dbRole,
+		};
+		if (email.length !== 0) {
+			query.$or = [
+				{
+					$text: {
+						$search: email,
 					},
-					{
-						email: {
-							$regex: new RegExp(email, 'i'),
-						},
+				},
+				{
+					email: {
+						$regex: new RegExp(email, 'i'),
 					},
-				],
-				role: dbRole,
-			},
-			{
-				projection: { _id: 0, email: 1, role: 0 },
-				populate: 'role',
-			},
-		);
+				},
+			];
+		}
+
+		const { count, items } = await this.users_repository.findAll(query, {
+			projection: { _id: 0, email: 1, role: 0 },
+			populate: 'role',
+		});
 
 		return {
 			count,
