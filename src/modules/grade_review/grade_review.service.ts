@@ -356,7 +356,7 @@ export class GradeReviewService {
 		newCommentDto: CreateCommentDto,
 		sender: User,
 	) {
-		const result = this.grade_review_model.findByIdAndUpdate(
+		const result = await this.grade_review_model.findByIdAndUpdate(
 			id,
 			{
 				$push: {
@@ -373,6 +373,20 @@ export class GradeReviewService {
 
 		if ((sender.role as unknown as USER_ROLE) === USER_ROLE.TEACHER) {
 			const gradeReview = await this.grade_review_model.findById(id);
+			const classDetail = await this.classes_service.findOne(
+				result.class.toString(),
+			);
+			if (!classDetail) {
+				return;
+			}
+			if (
+				classDetail.students.findIndex(
+					(s) => s._id.toString() === gradeReview.request_student.toString(),
+				) === -1
+			) {
+				return;
+			}
+
 			await this.event_emitter.emitAsync(
 				ServerEvents.GRADE_REVIEW_COMMENT,
 				ServerEvents.GRADE_REVIEW_COMMENT,
@@ -438,19 +452,29 @@ export class GradeReviewService {
 					new: true,
 				},
 			);
-			await this.event_emitter.emitAsync(
-				ServerEvents.GRADE_REVIEW_FINISHED,
-				ServerEvents.GRADE_REVIEW_FINISHED,
-				{
-					title: 'Grade Review Finished',
-					message: `Teacher <strong>${getUserFullNameOrEmail(
-						update_teacher,
-					)}</strong> has finished the grade review of you. Click for more detail.`,
-					ref_url: `/class/${gradeReview.class.toString()}/grade-review?review=${id}`,
-					receivers: [gradeReview.request_student],
-					sender: update_teacher._id.toString(),
-				} as CreateNotificationDto,
+
+			const classDetail = await this.classes_service.findOne(
+				gradeReview.class.toString(),
 			);
+			if (
+				classDetail.students.findIndex(
+					(s) => s._id.toString() === gradeReview.request_student.toString(),
+				) !== -1
+			) {
+				await this.event_emitter.emitAsync(
+					ServerEvents.GRADE_REVIEW_FINISHED,
+					ServerEvents.GRADE_REVIEW_FINISHED,
+					{
+						title: 'Grade Review Finished',
+						message: `Teacher <strong>${getUserFullNameOrEmail(
+							update_teacher,
+						)}</strong> has finished the grade review of you. Click for more detail.`,
+						ref_url: `/class/${gradeReview.class.toString()}/grade-review?review=${id}`,
+						receivers: [gradeReview.request_student],
+						sender: update_teacher._id.toString(),
+					} as CreateNotificationDto,
+				);
+			}
 			return true;
 		} catch (error) {
 			throw new BadRequestException(error.message);
