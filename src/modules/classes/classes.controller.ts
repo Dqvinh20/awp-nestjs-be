@@ -139,10 +139,13 @@ export class ClassesController {
 		let query;
 		switch (user.role as unknown as USER_ROLE) {
 			case USER_ROLE.TEACHER:
-				query = { $or: [{ owner: user.id }, { teachers: user.id }] };
+				query = {
+					$or: [{ owner: user.id }, { teachers: user.id }],
+					isActive: true,
+				};
 				break;
 			case USER_ROLE.STUDENT:
-				query = { students: user.id };
+				query = { students: user.id, isActive: true };
 				break;
 			default:
 				break;
@@ -466,12 +469,17 @@ export class ClassesController {
 		@Role() userRole,
 	) {
 		const classDetail = await this.classesService.findOne(id);
-		if (
-			userRole !== USER_ROLE.ADMIN &&
-			user.email !== classDetail.owner.email
-		) {
-			const { teachers, students } = classDetail;
-			if (teachers.map((teacher) => teacher.email).includes(user.email))
+		if (userRole !== USER_ROLE.ADMIN) {
+			const { teachers, students, owner, isActive } = classDetail;
+			if (!isActive) {
+				throw new UnauthorizedException('Class is not active');
+			}
+
+			if (
+				[...teachers, owner]
+					.map((teacher) => teacher.email)
+					.includes(user.email)
+			)
 				return classDetail;
 
 			if (students.map((student) => student.email).includes(user.email))
