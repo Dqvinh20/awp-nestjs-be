@@ -509,7 +509,14 @@ export class ClassesController {
 	})
 	@Patch(':id')
 	@Roles(USER_ROLE.ADMIN, USER_ROLE.TEACHER)
-	update(@Param('id') id: string, @Body() updateClassDto: UpdateClassDto) {
+	update(
+		@Param('id') id: string,
+		@Body() updateClassDto: UpdateClassDto,
+		@Role() userRole,
+	) {
+		if (updateClassDto.isActive && userRole !== USER_ROLE.ADMIN) {
+			throw new UnauthorizedException('Only admin can update "isActive" field');
+		}
 		return this.classesService.update(id, updateClassDto);
 	}
 

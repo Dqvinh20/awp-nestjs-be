@@ -9,4 +9,8 @@ export class UpdateClassDto extends PartialType(
 	@IsOptional()
 	@IsBoolean()
 	isJoinable?: boolean;
+
+	@IsOptional()
+	@IsBoolean()
+	isActive?: boolean;
 }
