@@ -551,7 +551,7 @@ export class ClassesController {
 			},
 		},
 	})
-	@Patch(':id/inactive')
+	@Patch(':id/deactive')
 	@Roles(USER_ROLE.ADMIN)
 	inactiveClass(@Param('id') id: string) {
 		return this.classesService.update(id, {
