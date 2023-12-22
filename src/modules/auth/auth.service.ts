@@ -208,6 +208,12 @@ export class AuthService {
 			throw new NotFoundException('User are not registered yet!!');
 		}
 
+		if (dbUser.isActive === false) {
+			throw new UnauthorizedException(
+				'Your account is blocked!!. Contact admin for detail.',
+			);
+		}
+
 		return this.signIn(dbUser._id.toString());
 	}
 

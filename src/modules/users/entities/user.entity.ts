@@ -29,8 +29,9 @@ export enum GENDER {
 export class User extends BaseEntity {
 	@Prop({
 		required: false,
-		minlength: 2,
+		minlength: 0,
 		maxlength: 60,
+		default: '',
 		set: (first_name: string) => {
 			return first_name.trim();
 		},
@@ -39,8 +40,9 @@ export class User extends BaseEntity {
 
 	@Prop({
 		required: false,
-		minlength: 2,
+		minlength: 0,
 		maxlength: 60,
+		default: '',
 		set: (last_name: string) => {
 			return last_name.trim();
 		},
@@ -94,18 +96,6 @@ export class User extends BaseEntity {
 	})
 	role: UserRole;
 
-	// @Prop({
-	// 	type: [
-	// 		{
-	// 			type: AddressSchema,
-	// 		},
-	// 	],
-	// })
-	// @Type(() => Address)
-	// address: Address[];
-
-	// default_address?: string;
-
 	@Prop({ default: false })
 	isEmailConfirmed: boolean;
 
@@ -133,12 +123,5 @@ export const UserSchemaFactory = () => {
 			: '';
 	});
 
-	// user_schema.virtual('default_address').get(function (this: UserDocument) {
-	// 	if (this.address.length) {
-	// 		return `${(this.address[0].street && ' ') || ''}${this.address[0].city} ${
-	// 			this.address[0].state
-	// 		} ${this.address[0].country}`;
-	// 	}
-	// });
 	return user_schema;
 };

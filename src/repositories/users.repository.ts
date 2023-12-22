@@ -26,6 +26,7 @@ export class UsersRepository
 			populate?: string[] | PopulateOptions | PopulateOptions[];
 			offset?: number;
 			limit?: number;
+			sort?: string;
 		},
 	): Promise<FindAllResponse<UserDocument>> {
 		const [count, items] = await Promise.all([
@@ -33,8 +34,9 @@ export class UsersRepository
 			this.user_model
 				.find({ ...condition, deleted_at: null }, options?.projection || '', {
 					skip: options.offset || 0,
-					limit: options.limit || 10,
+					limit: options.limit,
 				})
+				.sort(options.sort ?? '')
 				.populate(options.populate),
 		]);
 		return {

@@ -88,8 +88,20 @@ export class UsersController {
 	})
 	@Roles(USER_ROLE.ADMIN)
 	@Get()
-	findAll() {
-		return this.users_service.findAll();
+	async findAll() {
+		const adminRole = await this.user_roles_service.findOneByCondition({
+			name: USER_ROLE.ADMIN,
+		});
+		return this.users_service.findAll(
+			{
+				role: {
+					$ne: adminRole.id,
+				},
+			},
+			{
+				sort: '-created_at',
+			},
+		);
 	}
 
 	@ApiQuery({

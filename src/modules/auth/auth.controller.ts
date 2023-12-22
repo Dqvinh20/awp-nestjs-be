@@ -201,6 +201,12 @@ export class AuthController {
 			}
 		}
 
+		if (user.isActive === false) {
+			throw new UnauthorizedException(
+				'Your account is blocked!!. Contact admin for detail.',
+			);
+		}
+
 		const data = await this.auth_service.signIn(user._id.toString());
 
 		// Set refresh token to cookie
@@ -253,6 +259,7 @@ export class AuthController {
 						return res.redirect(successRedirectUrl(auth));
 					}
 				}
+				throw error;
 			} catch (error1) {
 				return res.redirect(
 					`${this.configService.get<string>('BASE_FE_URL')}/sign-in?error=${
