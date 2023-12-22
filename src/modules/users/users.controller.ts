@@ -12,6 +12,12 @@ import {
 	BadRequestException,
 	Req,
 	Query,
+	FileTypeValidator,
+	MaxFileSizeValidator,
+	ParseFilePipe,
+	UploadedFile,
+	Res,
+	StreamableFile,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -38,6 +44,11 @@ import { Public } from 'src/decorators/auth.decorator';
 import { UserRolesService } from '@modules/user-roles/user-roles.service';
 import { Role } from 'src/decorators/role.decorator';
 import { hashPassword } from '@modules/shared/helper/password.helper';
+import { ApiBodyWithSingleFile } from 'src/decorators/swagger-form-data.decorator';
+import { AuthUser } from 'src/decorators/auth_user.decorator';
+import { MAX_IMPORT_FILE_SIZE } from '@modules/class_grades/class_grades.controller';
+import * as XLSX from 'xlsx';
+import type { Response } from 'express';
 
 @ApiBearerAuth()
 @Controller('users')
@@ -135,12 +146,77 @@ export class UsersController {
 		return user;
 	}
 
+	@Roles(USER_ROLE.ADMIN)
+	@Get('/template-student-id')
+	async getTemplateMapStudentId(
+		@AuthUser() user: User,
+		@Res({ passthrough: true }) res: Response,
+	) {
+		const workbook = XLSX.utils.book_new();
+		const worksheet = XLSX.utils.json_to_sheet(
+			[
+				{
+					email: 'Email',
+					student_id: 'Student ID',
+				},
+			],
+			{
+				header: ['email', 'student_id'],
+				skipHeader: true,
+			},
+		);
+
+		XLSX.utils.book_append_sheet(workbook, worksheet, 'Student List');
+		const buffer = XLSX.write(workbook, {
+			type: 'buffer',
+			bookType: 'xlsx',
+		});
+
+		res.type(
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		);
+		res.attachment(`map_student_id_template.xlsx`);
+
+		return new StreamableFile(buffer);
+	}
+
+	@ApiBodyWithSingleFile()
+	@Roles(USER_ROLE.ADMIN)
+	@Post('/import-student-id')
+	async importMapStudentId(
+		@AuthUser() user: User,
+		@UploadedFile(
+			new ParseFilePipe({
+				fileIsRequired: true,
+				validators: [
+					new MaxFileSizeValidator({
+						maxSize: MAX_IMPORT_FILE_SIZE,
+						message: `File too large. Max file size ${
+							MAX_IMPORT_FILE_SIZE / 1000
+						}MB`,
+					}),
+					new FileTypeValidator({
+						fileType: /^(?:(?!~\$).)+\.(?:sheet?|csv)$/g,
+					}),
+				],
+			}),
+		)
+		file: Express.Multer.File,
+	) {
+		const { buffer, filename } = file;
+		// const { id } = user;
+		// const result = await this.users_service.importMapStudentId(id, buffer);
+		// return result;
+		return filename;
+	}
+
+	@Roles(USER_ROLE.ADMIN)
 	@Get(':id')
 	async findOne(@Param('id') id: string) {
 		if (!isMongoId(id)) {
 			throw new BadRequestException("Invalid user's id");
 		}
-		return await this.users_service.findOne(id);
+		return await this.users_service.getUserWithRole(id);
 	}
 
 	@ApiOperation({

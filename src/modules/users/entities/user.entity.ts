@@ -78,6 +78,7 @@ export class User extends BaseEntity {
 	@Prop({
 		enum: GENDER,
 	})
+	@Expose()
 	gender: GENDER;
 
 	@Prop({
