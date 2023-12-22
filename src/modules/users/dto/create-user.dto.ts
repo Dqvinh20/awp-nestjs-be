@@ -1,16 +1,12 @@
-import { Type } from 'class-transformer';
 import {
-	ArrayMinSize,
-	IsArray,
 	IsEmail,
 	IsEnum,
 	IsNotEmpty,
 	IsOptional,
+	IsString,
 	IsStrongPassword,
 	MaxLength,
-	ValidateNested,
 } from 'class-validator';
-import { CreateAddressDto } from './create-address.dto';
 import { USER_ROLE } from '@modules/user-roles/entities/user-role.entity';
 
 export class CreateUserDto {
@@ -19,18 +15,25 @@ export class CreateUserDto {
 	@IsEmail()
 	email: string;
 
-	@IsNotEmpty()
+	@IsOptional()
 	@IsStrongPassword()
-	password: string;
+	password?: string;
 
 	@IsOptional()
 	@IsEnum(USER_ROLE)
 	role?: string;
 
 	@IsOptional()
-	@IsArray()
-	@ArrayMinSize(1)
-	@ValidateNested({ each: true })
-	@Type(() => CreateAddressDto)
-	address?: CreateAddressDto[];
+	@MaxLength(50)
+	@IsString()
+	first_name?: string;
+
+	@IsOptional()
+	@MaxLength(50)
+	@IsString()
+	last_name?: string;
+
+	@IsOptional()
+	@IsString()
+	student_id?: string;
 }

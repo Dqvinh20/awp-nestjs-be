@@ -37,6 +37,7 @@ import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { Public } from 'src/decorators/auth.decorator';
 import { UserRolesService } from '@modules/user-roles/user-roles.service';
 import { Role } from 'src/decorators/role.decorator';
+import { hashPassword } from '@modules/shared/helper/password.helper';
 
 @ApiBearerAuth()
 @Controller('users')
@@ -70,7 +71,15 @@ export class UsersController {
 	})
 	@Roles(USER_ROLE.ADMIN)
 	@Post()
-	create(@Body() create_user_dto: CreateUserDto) {
+	async create(@Body() create_user_dto: CreateUserDto) {
+		const user = await this.users_service.findOneByCondition({
+			email: create_user_dto.email,
+		});
+		if (user) {
+			throw new BadRequestException('Email already existed');
+		}
+
+		create_user_dto.password = hashPassword('12345678');
 		return this.users_service.create(create_user_dto);
 	}
 
