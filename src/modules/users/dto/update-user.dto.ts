@@ -1,5 +1,11 @@
 import { OmitType, PartialType } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+	IsBoolean,
+	IsEnum,
+	IsOptional,
+	IsString,
+	MaxLength,
+} from 'class-validator';
 import { GENDER } from '../entities/user.entity';
 import { CreateUserDto } from './create-user.dto';
 
@@ -23,4 +29,8 @@ export class UpdateUserDto extends PartialType(
 	@IsOptional()
 	@IsEnum(GENDER)
 	gender?: GENDER;
+
+	@IsOptional()
+	@IsBoolean()
+	isActive?: boolean;
 }

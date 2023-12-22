@@ -217,7 +217,7 @@ export class UsersController {
 	}
 
 	@ApiOperation({
-		summary: 'User update infor',
+		summary: 'User update info',
 		description: `
 * Student can update student id
 
@@ -235,7 +235,15 @@ export class UsersController {
 		}
 
 		// Admin can update user's role
-		if (authRole === USER_ROLE.ADMIN && role) {
+		if (authRole === USER_ROLE.ADMIN) {
+			if (!role) {
+				return this.users_service
+					.update(id, {
+						...update_user_dto,
+					})
+					.then((user: UserDocument) => user.populate('role'));
+			}
+
 			if (!isEnum(role, USER_ROLE)) {
 				throw new BadRequestException('Invalid role');
 			}
@@ -251,6 +259,7 @@ export class UsersController {
 				.then((user: UserDocument) => user.populate('role'));
 		}
 
+		delete update_user_dto?.isActive;
 		// Teacher can't update any student_id
 		if (authRole === USER_ROLE.TEACHER) {
 			delete update_user_dto?.student_id;
