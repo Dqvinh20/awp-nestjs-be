@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
@@ -27,9 +27,16 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(
 
 	async validate(request: Request, payload: TokenPayload) {
 		const refreshToken = request.cookies?.Refresh;
-		return await this.auth_service.getUserIfRefreshTokenMatched(
+		const user = await this.auth_service.getUserIfRefreshTokenMatched(
 			payload.user_id,
 			refreshToken,
 		);
+
+		if (user.isActive === false) {
+			throw new UnauthorizedException(
+				'Your account is blocked!!. Contact admin for detail.',
+			);
+		}
+		return user;
 	}
 }
