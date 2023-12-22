@@ -272,7 +272,7 @@ export class GradeReviewService {
 		const classes = await this.classes_service.findAll({
 			$or: [
 				{
-					teacher: teacher._id,
+					teachers: teacher._id,
 				},
 				{
 					owner: teacher._id,
