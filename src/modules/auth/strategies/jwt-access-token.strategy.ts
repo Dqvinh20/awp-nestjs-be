@@ -1,5 +1,5 @@
 import { UsersService } from '@modules/users/users.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { TokenPayload } from '../interfaces/token.interface';
@@ -16,6 +16,12 @@ export class JwtAccessTokenStrategy extends PassportStrategy(Strategy) {
 	}
 
 	async validate(payload: TokenPayload) {
-		return await this.users_service.getUserWithRole(payload.user_id);
+		const user = await this.users_service.getUserWithRole(payload.user_id);
+		if (user.isActive === false) {
+			throw new UnauthorizedException(
+				'Your account is blocked!!. Contact admin for detail.',
+			);
+		}
+		return user;
 	}
 }
