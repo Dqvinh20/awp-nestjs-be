@@ -21,6 +21,8 @@ import {
 } from '@modules/shared/helper/password.helper';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { FilterQuery } from 'mongoose';
+import readXlsxFile, { Email } from 'read-excel-file/node';
+import { keyBy, pickBy } from 'lodash';
 
 @Injectable()
 export class UsersService extends BaseServiceAbstract<User> {
@@ -289,5 +291,117 @@ export class UsersService extends BaseServiceAbstract<User> {
 
 	permanentlyDelete(id: string) {
 		return this.users_repository.permanentlyDelete(id);
+	}
+
+	async importMapStudentId(buffer: Buffer) {
+		const rows = await readXlsxFile<{
+			student_id: string;
+			email: string;
+		}>(buffer, {
+			schema: {
+				Email: {
+					prop: 'email',
+					type: Email,
+					required: true,
+				},
+
+				'Student ID': {
+					prop: 'student_id',
+					type: String,
+					required: true,
+					validate(value: string) {
+						if (value.length > 10 || value.length < 0) {
+							throw new Error('Student ID must be between 0 and 10 characters');
+						}
+					},
+				},
+			},
+			transformData(dataExcel: any[]) {
+				return dataExcel.filter(
+					(rowExcel: any[]) =>
+						rowExcel.filter((columnExcel) => columnExcel !== null).length > 0,
+				);
+			},
+		}).then(({ rows, errors }) => {
+			let duplicateStudentId = rows.reduce((a: any, e: any) => {
+				a[e.student_id] = ++a[e.student_id] || 0;
+				return a;
+			}, {});
+			duplicateStudentId = pickBy(
+				duplicateStudentId,
+				(value, key) => value >= 1,
+			);
+			const duplicateStudentIdKeys = Object.keys(duplicateStudentId);
+			if (duplicateStudentIdKeys.length !== 0) {
+				throw new Error(
+					`Duplicate Student ID: <strong class="text-red-500">${duplicateStudentIdKeys.join(
+						', ',
+					)}</strong>. Please check again!`,
+				);
+			}
+
+			let duplicateEmails = rows.reduce((a: any, e: any) => {
+				a[e.email] = ++a[e.email] || 0;
+				return a;
+			}, {});
+			duplicateEmails = pickBy(duplicateEmails, (value, key) => value >= 1);
+			const duplicateEmailKeys = Object.keys(duplicateEmails);
+			if (duplicateEmailKeys.length !== 0) {
+				throw new Error(
+					`Duplicate Email: <strong class="text-red-500">${duplicateEmailKeys.join(
+						', ',
+					)}</strong>. Please check again!`,
+				);
+			}
+
+			const errorsKeys = keyBy(errors, 'error');
+			if (errors.length === 0) {
+				if (rows.length === 0) {
+					throw new BadRequestException('Empty file!');
+				}
+				return rows;
+			}
+
+			const details = () => {
+				if (errorsKeys['Student ID must be between 0 and 10 characters']) {
+					return 'Student ID must be between 0 and 10 characters';
+				}
+
+				if (errorsKeys.required) {
+					return `Field is missing at row ${errorsKeys.required.row} in column '${errorsKeys.required.column}'`;
+				}
+
+				if (errorsKeys.invalid) {
+					return `Field is ${errorsKeys.invalid.reason
+						?.split('_')
+						.join(' ')} at row ${errorsKeys.invalid.row} in column '${
+						errorsKeys.invalid.column
+					}'`;
+				}
+			};
+
+			throw new BadRequestException(details());
+		});
+
+		const users = await this.users_repository.findAll({
+			email: {
+				$in: rows.map((row) => row.email),
+			},
+			role: await this.user_roles_service
+				.findOneByCondition({
+					name: USER_ROLE.STUDENT,
+				})
+				.then((role) => role.id),
+		});
+
+		await Promise.allSettled(
+			users.items.map((user) =>
+				this.users_repository.update(user.id, {
+					student_id: rows.find((row) => row.email === user.email)?.student_id,
+				}),
+			),
+		);
+
+		return true;
 	}
 }

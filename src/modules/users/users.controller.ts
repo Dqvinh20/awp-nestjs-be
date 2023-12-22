@@ -203,11 +203,8 @@ export class UsersController {
 		)
 		file: Express.Multer.File,
 	) {
-		const { buffer, filename } = file;
-		// const { id } = user;
-		// const result = await this.users_service.importMapStudentId(id, buffer);
-		// return result;
-		return filename;
+		const { buffer } = file;
+		return this.users_service.importMapStudentId(buffer);
 	}
 
 	@Roles(USER_ROLE.ADMIN)
