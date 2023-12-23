@@ -263,6 +263,9 @@ export class UsersController {
 		// Teacher can't update any student_id
 		if (authRole === USER_ROLE.TEACHER) {
 			delete update_user_dto?.student_id;
+			return this.users_service
+				.update(id, update_user_dto)
+				.then((user: UserDocument) => user.populate('role'));
 		}
 
 		if (update_user_dto.student_id && update_user_dto?.student_id === '') {
