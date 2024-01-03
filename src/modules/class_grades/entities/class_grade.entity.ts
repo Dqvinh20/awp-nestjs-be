@@ -39,7 +39,6 @@ export class ClassGrade extends BaseEntity {
 	class: Class;
 
 	@Prop({
-		required: true,
 		type: [
 			{
 				type: GradeColumnSchema,
@@ -51,7 +50,6 @@ export class ClassGrade extends BaseEntity {
 	grade_columns: GradeColumn[];
 
 	@Prop({
-		required: true,
 		type: [
 			{
 				type: GradeRowSchema,

@@ -54,7 +54,6 @@ export class Class extends BaseEntity {
 				required: false,
 				type: mongoose.Schema.Types.ObjectId,
 				ref: User.name,
-				unique: true,
 			},
 		],
 	})
@@ -67,7 +66,6 @@ export class Class extends BaseEntity {
 				required: false,
 				type: mongoose.Schema.Types.ObjectId,
 				ref: User.name,
-				unique: true,
 			},
 		],
 	})
