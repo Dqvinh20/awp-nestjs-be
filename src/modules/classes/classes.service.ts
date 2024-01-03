@@ -329,46 +329,36 @@ export class ClassesService extends BaseServiceAbstract<Class> {
 				throw new BadRequestException(err.message || 'Something went wrong');
 			});
 
-		const { items, count } = foundUsers;
+		const { items } = foundUsers;
 
 		// Email is not exist in database
-		const notFoundEmails = items
-			.map((user) => user.email)
-			.filter((email) => {
-				return !normailizedEmails.includes(email);
-			});
+		// const notFoundEmails = items
+		// 	.map((user) => user.email)
+		// 	.filter((email) => {
+		// 		return !normailizedEmails.includes(email);
+		// 	});
 
-		const sendEmails = async () => {
-			const results = await Promise.allSettled(
-				items.map(async (user) => {
-					const url = await this.createInvitationLink(code, user);
-					this.mailerService.sendMail({
-						to: invitationSendDto.invited_emails,
-						template: 'enroll_invitation',
-						subject: 'Invitation to join class',
-						context: {
-							class: {
-								name: classDetail.name,
-							},
-							author: {
-								avatar: requestUser.avatar,
-								name: requestUser.full_name,
-								email: requestUser.email,
-							},
-							enrollUrl: url,
+		const results = await Promise.allSettled(
+			items.map(async (user) => {
+				const url = await this.createInvitationLink(code, user);
+				return await this.mailerService.sendMail({
+					to: user.email,
+					template: 'enroll_invitation',
+					subject: 'Invitation to join class',
+					context: {
+						class: {
+							name: classDetail.name,
 						},
-					});
-				}),
-			);
-
-			const success = results.filter((result) => result.status === 'fulfilled');
-			const failed = results.filter((result) => result.status === 'rejected');
-
-			return {
-				success: success.length,
-				failed: failed.length,
-			};
-		};
-		return await sendEmails();
+						author: {
+							avatar: requestUser.avatar,
+							name: requestUser.full_name,
+							email: requestUser.email,
+						},
+						enrollUrl: url,
+					},
+				});
+			}),
+		);
+		return results;
 	}
 }
