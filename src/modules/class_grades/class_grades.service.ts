@@ -433,11 +433,11 @@ export class ClassGradesService {
 
 		updateGradeRow.grades =
 			values(merge(keyBy(gradeRow, 'column'), keyBy(grades, 'column'))) ?? [];
-		if (!updateGradeRow._id) {
-			delete updateGradeRow._id;
-		} else {
+
+		if (updateGradeRow._id) {
 			updateGradeRow._id = new ObjectId(updateGradeRow._id);
 		}
+
 		await this.class_grades_model.findOneAndUpdate(
 			{
 				class: new ObjectId(class_id),
@@ -448,7 +448,17 @@ export class ClassGradesService {
 						grade_rows: {
 							$cond: [
 								{
-									$in: [updateGradeRow.student_id, '$grade_rows.student_id'],
+									$or: [
+										{
+											$in: [
+												updateGradeRow.student_id,
+												'$grade_rows.student_id',
+											],
+										},
+										{
+											$in: [updateGradeRow._id, '$grade_rows._id'],
+										},
+									],
 								},
 								{
 									$map: {
@@ -459,9 +469,17 @@ export class ClassGradesService {
 												{
 													$cond: [
 														{
-															$eq: [
-																'$$this.student_id',
-																updateGradeRow.student_id,
+															$or: [
+																{
+																	$eq: [
+																		'$$this.student_id',
+																		updateGradeRow.student_id,
+																	],
+																},
+
+																{
+																	$eq: ['$$this._id', updateGradeRow._id],
+																},
 															],
 														},
 														{
