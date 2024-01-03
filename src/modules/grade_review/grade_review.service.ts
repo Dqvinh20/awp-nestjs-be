@@ -402,6 +402,48 @@ export class GradeReviewService {
 					sender: newCommentDto.sender,
 				} as CreateNotificationDto,
 			);
+		} else {
+			const gradeReview = await this.grade_review_model.findById(id);
+			const classDetail = await this.classes_service.findOne(
+				result.class.toString(),
+			);
+			if (!classDetail) {
+				return;
+			}
+			if (
+				classDetail.students.findIndex(
+					(s) => s._id.toString() === gradeReview.request_student.toString(),
+				) === -1
+			) {
+				return;
+			}
+
+			const { comments } = gradeReview;
+			if (comments.length <= 1) {
+				return;
+			}
+
+			const lastComment = comments[comments.length - 2];
+
+			if (lastComment.sender.toString() === newCommentDto.sender) {
+				return;
+			}
+
+			await this.event_emitter.emitAsync(
+				ServerEvents.GRADE_REVIEW_COMMENT,
+				ServerEvents.GRADE_REVIEW_COMMENT,
+				{
+					title: 'New Comment',
+					message: `Student <strong>${getUserFullNameOrEmail(
+						sender,
+					)}</strong> has replied you in grade review request for column </strong>${
+						gradeReview.column_name
+					}</strong>. Click for more detail.`,
+					ref_url: `/class/${gradeReview.class.toString()}/grade-review?review=${id}`,
+					receivers: [lastComment.sender.toString()],
+					sender: newCommentDto.sender,
+				} as CreateNotificationDto,
+			);
 		}
 		return result;
 	}
