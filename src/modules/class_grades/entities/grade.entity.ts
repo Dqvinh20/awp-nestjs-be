@@ -11,8 +11,6 @@ export class Grade {
 		required: true,
 		type: mongoose.Schema.Types.ObjectId,
 		ref: GradeColumn.name,
-		unique: true,
-		index: true,
 	})
 	@Transform(
 		({ value }) => {
