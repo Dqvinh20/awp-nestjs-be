@@ -113,7 +113,7 @@ export class NotificationsService extends BaseServiceAbstract<NotificationEntity
 		return await this.notif_model.paginate(
 			{
 				$or: [
-					{ receivers: user_id, class: null },
+					{ receivers: user_id },
 					{
 						class: {
 							$in: joinedClass.map((class_) => class_._id),
