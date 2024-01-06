@@ -436,6 +436,8 @@ export class ClassGradesService {
 
 		if (updateGradeRow._id) {
 			updateGradeRow._id = new ObjectId(updateGradeRow._id);
+		} else {
+			updateGradeRow._id = new ObjectId();
 		}
 
 		await this.class_grades_model.findOneAndUpdate(
