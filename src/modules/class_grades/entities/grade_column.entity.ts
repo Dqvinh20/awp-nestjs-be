@@ -22,8 +22,8 @@ export class GradeColumn extends BaseEntity {
 	@Prop({
 		required: true,
 		type: Number,
-		unique: true,
 		min: 0,
+		default: 0,
 	})
 	ordinal!: number;
 
