@@ -280,14 +280,15 @@ export class GradeReviewService {
 			],
 		});
 
-		const query: FilterQuery<GradeReview> = {
-			class: {
-				$in: [...classes.items.map((cls) => cls._id.toString())],
-			},
-		};
-
+		let query: FilterQuery<GradeReview>;
 		if (class_id) {
-			query.class.$in.push(class_id);
+			query = { class: class_id };
+		} else {
+			query = {
+				class: {
+					$in: [...classes.items.map((cls) => cls._id.toString())],
+				},
+			};
 		}
 
 		const populate: PopulateOptions[] = [
